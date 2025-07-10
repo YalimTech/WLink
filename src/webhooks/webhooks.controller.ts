@@ -1,125 +1,124 @@
 import {
-	Controller,
-	Post,
-	Body,
-	Req,
-	UseGuards,
-	HttpCode,
-	HttpStatus, Res, BadRequestException,
+  Controller,
+  Post,
+  Body,
+  Req,
+  HttpCode,
+  HttpStatus,
+  Res,
+  BadRequestException,
 } from "@nestjs/common";
+import { Response, Request } from "express";
 import { GhlService } from "../ghl/ghl.service";
-import { GreenApiLogger, GreenApiWebhook } from "@green-api/greenapi-integration";
-import { GhlWebhookDto } from "../ghl/dto/ghl-webhook.dto";
-import { GreenApiWebhookGuard } from "./guards/greenapi-webhook.guard";
-import { Response } from "express";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Controller("webhooks")
-export class WebhooksController {
-	private readonly logger = GreenApiLogger.getInstance(WebhooksController.name);
+export class EvolutionController {
+  constructor(
+    private readonly ghlService: GhlService,
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-	constructor(private readonly ghlService: GhlService, private configService: ConfigService, private prisma: PrismaService) {}
+  @Post("evolution")
+  @HttpCode(HttpStatus.OK)
+  async handleEvolutionWebhook(@Body() payload: any, @Res() res: Response): Promise<void> {
+    console.log("Evolution API Webhook Payload:", JSON.stringify(payload));
+    res.status(HttpStatus.OK).send();
 
-	@Post("green-api")
-	@UseGuards(GreenApiWebhookGuard)
-	@HttpCode(HttpStatus.OK)
-	async handleGreenApiWebhook(@Body() webhook: GreenApiWebhook, @Res() res: Response): Promise<void> {
-		this.logger.debug(`Green API Webhook Body: ${JSON.stringify(webhook)}`);
-		res.status(HttpStatus.OK).send();
-		try {
-			await this.ghlService.handleGreenApiWebhook(webhook, ["incomingMessageReceived", "stateInstanceChanged", "incomingCall"]);
-		} catch (error) {
-			this.logger.error(`Error processing Green API webhook`, error);
-		}
-	}
+    try {
+      // Detectamos si es un mensaje entrante
+      if (payload?.type === "message:received" && payload?.message?.from) {
+        const from = payload.message.from;
+        const body = payload.message.text || "";
+        const phoneNumber = this.normalizePhoneNumber(from);
 
-	@Post("ghl")
-	@HttpCode(HttpStatus.OK)
-	async handleGhlWebhook(@Body() ghlWebhook: GhlWebhookDto, @Req() request: Request, @Res() res: Response): Promise<void> {
-		this.logger.debug(`GHL Webhook Body: ${JSON.stringify(ghlWebhook)}`);
+        // 🔍 Buscar instancia que maneja ese número
+        const instance = await this.prisma.instance.findFirst({
+          where: {
+            phoneNumber,
+          },
+        });
 
-		const locationId = ghlWebhook.locationId || request.headers["x-location-id"];
-		const messageId = ghlWebhook.messageId;
-		try {
-			const conversationProviderId = ghlWebhook.conversationProviderId === this.configService.get("GHL_CONVERSATION_PROVIDER_ID");
+        if (!instance) {
+          console.warn("No instance found for number", phoneNumber);
+          return;
+        }
 
-			if (!conversationProviderId) {
-				this.logger.error("Conversation provider ID is wrong", ghlWebhook);
-				throw new BadRequestException("Conversation provider ID is wrong");
-			}
+        // 📲 Buscar contacto en GHL
+        const contact = await this.ghlService.getGhlContactByPhone(instance.userId, phoneNumber);
 
-			const locationId = ghlWebhook.locationId || request.headers["x-location-id"];
-			if (!locationId) {
-				this.logger.error("GHL Location ID is missing", ghlWebhook);
-				throw new BadRequestException("Location ID is missing");
-			}
-			let instanceId: string | bigint | null = null;
-			const contact = await this.ghlService.getGhlContact(locationId, ghlWebhook.phone);
-			if (contact?.tags) {
-				instanceId = this.extractInstanceIdFromTags(contact.tags);
-				if (instanceId) {
-					this.logger.log(`Found instance ID from tags: ${instanceId}`);
-				}
-			}
-			if (!instanceId) {
-				this.logger.warn(
-					`WhatsApp instance ID not found in contact custom fields for phone ${ghlWebhook.phone}, falling back to location instances`,
-					{ghlWebhook, contact},
-				);
+        if (!contact || !contact.id) {
+          console.warn("No GHL contact found or created");
+          return;
+        }
 
-				const instances = await this.prisma.getInstancesByUserId(locationId);
+        // 🚀 Reenviar mensaje a GHL como mensaje inbound
+        await this.ghlService.sendInboundMessageToGhl({
+          locationId: instance.userId, // en este caso userId actúa como locationId
+          contactId: contact.id,
+          conversationProviderId: this.configService.get("GHL_CONVERSATION_PROVIDER_ID"),
+          message: body,
+        });
+      }
+    } catch (error) {
+      console.error("Error processing Evolution webhook", error);
+    }
+  }
 
-				if (instances.length === 0) {
-					this.logger.error(`No instances found for location ${locationId}`);
-					res.status(HttpStatus.OK).send();
-					return;
-				}
-				if (instances.length === 1) {
-					this.logger.log(`Using single instance ${instances[0].idInstance} for location ${locationId}`);
-					instanceId = instances[0].idInstance;
-				} else {
-					const oldestInstance = instances.sort((a, b) =>
-						a.createdAt.getTime() - b.createdAt.getTime(),
-					)[0];
-					this.logger.warn(`Multiple instances found for location ${locationId}, using oldest: ${oldestInstance.idInstance}`);
-					instanceId = oldestInstance.idInstance;
-				}
-			}
+  @Post("ghl")
+  @HttpCode(HttpStatus.OK)
+  async handleGhlWebhook(@Body() ghlWebhook: any, @Req() request: Request, @Res() res: Response): Promise<void> {
+    const locationId = ghlWebhook.locationId || request.headers["x-location-id"];
+    const messageId = ghlWebhook.messageId;
+    try {
+      const conversationProviderId =
+        ghlWebhook.conversationProviderId === this.configService.get("GHL_CONVERSATION_PROVIDER_ID");
 
-			res.status(HttpStatus.OK).send();
-			if (ghlWebhook.type === "SMS" && (ghlWebhook.message || (ghlWebhook.attachments && ghlWebhook.attachments.length > 0))) {
-				await this.ghlService.handlePlatformWebhook(ghlWebhook, BigInt(instanceId));
-			} else {
-				this.logger.log(`Ignoring GHL webhook type ${ghlWebhook.type}.`);
-			}
-		} catch (error) {
-			this.logger.error(`Error processing GHL webhook for location ${locationId}`, error);
-			if (locationId && messageId) {
-				try {
-					await this.ghlService.updateGhlMessageStatus(locationId, messageId, "failed", {
-						code: "500",
-						type: "message_processing_error",
-						message: error.message || "Failed to process outbound message",
-					});
-				} catch (statusUpdateError) {
-					this.logger.error(
-						`Failed to update GHL message ${messageId} status to "failed" for location ${locationId}. Error: ${statusUpdateError.message}`,
-						statusUpdateError,
-					);
-				}
-			}
-			res.status(HttpStatus.OK).send();
-		}
-	}
+      if (!conversationProviderId) throw new BadRequestException("Conversation provider ID is wrong");
+      if (!locationId) throw new BadRequestException("Location ID is missing");
 
-	private extractInstanceIdFromTags(tags: string[]): string | null {
-		if (!tags || tags.length === 0) return null;
+      let instanceId: string | bigint | null = null;
 
-		const instanceTag = tags.find(tag => tag.startsWith("whatsapp-instance-"));
-		if (instanceTag) {
-			return instanceTag.replace("whatsapp-instance-", "");
-		}
-		return null;
-	}
+      const contact = await this.ghlService.getGhlContact(locationId, ghlWebhook.phone);
+      if (contact?.tags) {
+        instanceId = this.extractInstanceIdFromTags(contact.tags);
+      }
+
+      if (!instanceId) {
+        const instances = await this.prisma.getInstancesByUserId(locationId);
+        if (instances.length === 0) return;
+        instanceId = instances.length === 1
+          ? instances[0].idInstance
+          : instances.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0].idInstance;
+      }
+
+      res.status(HttpStatus.OK).send();
+
+      if (ghlWebhook.type === "SMS" && (ghlWebhook.message || (ghlWebhook.attachments?.length > 0))) {
+        await this.ghlService.handlePlatformWebhook(ghlWebhook, BigInt(instanceId));
+      }
+
+    } catch (error) {
+      console.error("Error processing GHL webhook for location", locationId, error);
+      if (locationId && messageId) {
+        await this.ghlService.updateGhlMessageStatus(locationId, messageId, "failed", {
+          code: "500",
+          type: "message_processing_error",
+          message: error.message || "Failed to process outbound message",
+        });
+      }
+      res.status(HttpStatus.OK).send();
+    }
+  }
+
+  private normalizePhoneNumber(number: string): string {
+    return number.replace(/[^0-9]/g, ""); // Elimina espacios, guiones, paréntesis
+  }
+
+  private extractInstanceIdFromTags(tags: string[]): string | null {
+    const instanceTag = tags.find(tag => tag.startsWith("whatsapp-instance-"));
+    return instanceTag ? instanceTag.replace("whatsapp-instance-", "") : null;
+  }
 }
