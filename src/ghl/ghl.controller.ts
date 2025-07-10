@@ -7,11 +7,13 @@ import {
 	Body,
 	Param,
 	HttpException,
-	HttpStatus, Req, UseGuards,
+	HttpStatus,
+	Req,
+	UseGuards,
+	Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { GhlService } from "./ghl.service";
-import { GreenApiLogger } from "@green-api/greenapi-integration";
 import { AuthReq } from "../types";
 import { GhlContextGuard } from "./guards/ghl-context.guard";
 
@@ -29,7 +31,7 @@ interface UpdateInstanceDto {
 @Controller("api/instances")
 @UseGuards(GhlContextGuard)
 export class GhlController {
-	private readonly logger = GreenApiLogger.getInstance(GhlController.name);
+	private readonly logger = new Logger(GhlController.name);
 
 	constructor(
 		private readonly prisma: PrismaService,
@@ -62,6 +64,7 @@ export class GhlController {
 		};
 	}
 
+
 	@Post()
 	async createInstance(@Body() dto: CreateInstanceDto, @Req() req: AuthReq) {
 		if (req.locationId !== dto.locationId) {
@@ -79,7 +82,7 @@ export class GhlController {
 		}
 
 		try {
-			const instance = await this.ghlService.createGreenApiInstanceForUser(
+			const instance = await this.ghlService.createEvolutionInstanceForUser(
 				dto.locationId,
 				BigInt(dto.instanceId),
 				dto.apiToken,
@@ -103,7 +106,7 @@ export class GhlController {
 			}
 
 			if (error.code === "INVALID_CREDENTIALS") {
-				throw new HttpException("Invalid GREEN-API credentials", HttpStatus.BAD_REQUEST);
+				throw new HttpException("Invalid Evolution API credentials", HttpStatus.BAD_REQUEST);
 			}
 
 			throw new HttpException(
@@ -112,6 +115,7 @@ export class GhlController {
 			);
 		}
 	}
+
 
 	@Delete(":instanceId")
 	async deleteInstance(@Param("instanceId") instanceId: string, @Req() req: AuthReq) {
@@ -122,11 +126,6 @@ export class GhlController {
 		this.logger.log(`Deleting instance: ${instanceId}`);
 
 		try {
-			const instance = await this.prisma.getInstance(BigInt(instanceId));
-			if (!instance) {
-				throw new HttpException("Instance not found", HttpStatus.NOT_FOUND);
-			}
-
 			await this.prisma.removeInstance(BigInt(instanceId));
 
 			return {
