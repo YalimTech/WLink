@@ -6,11 +6,11 @@ import { Response } from "express";
 import axios from "axios";
 import { PrismaService } from "../prisma/prisma.service";
 import { GhlOAuthCallbackDto } from "./dto/ghl-oauth-callback.dto";
-import { GreenApiLogger } from "@green-api/greenapi-integration";
+import { Logger } from "@nestjs/common";
 
 @Controller("oauth")
 export class GhlOauthController {
-	private readonly logger = GreenApiLogger.getInstance(GhlOauthController.name);
+        private readonly logger = new Logger(GhlOauthController.name);
 	private readonly ghlServicesUrl = "https://services.leadconnectorhq.com";
 
 	constructor(
@@ -212,7 +212,7 @@ export class GhlOauthController {
 					
 					<div class="success-icon">✅</div>
 					<h1>Authentication Complete!</h1>
-					<p>Your workspace has been successfully connected to GREEN-API.</p>
+					<p>Your workspace has been successfully connected to WLink.</p>
 					
 					<div class="highlight">
 					  You can now manage your WhatsApp instances through the GREEN-API WhatsApp app's page (located in the navigation panel on the left).
