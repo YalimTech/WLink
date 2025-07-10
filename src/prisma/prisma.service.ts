@@ -1,10 +1,13 @@
 import { Injectable, OnModuleInit, NotFoundException } from "@nestjs/common";
 import {
-	InstanceState,
-	PrismaClient,
-	User,
-	Instance,
-	Prisma,
+        InstanceState,
+        PrismaClient,
+        User,
+        Instance,
+        Subscription,
+        Message,
+        WebhookLog,
+        Prisma,
 } from "@prisma/client";
 import {
 	StorageProvider,
@@ -138,11 +141,23 @@ export class PrismaService
 		});
 	}
 
-	async updateInstanceName(idInstance: number | bigint, name: string): Promise<Instance & { user: User }> {
-		return this.instance.update({
-			where: {idInstance: BigInt(idInstance)},
-			data: {name},
-			include: {user: true},
-		});
-	}
+        async updateInstanceName(idInstance: number | bigint, name: string): Promise<Instance & { user: User }> {
+                return this.instance.update({
+                        where: {idInstance: BigInt(idInstance)},
+                        data: {name},
+                        include: {user: true},
+                });
+        }
+
+        async createSubscription(data: Prisma.SubscriptionCreateInput): Promise<Subscription> {
+                return this.subscription.create({ data });
+        }
+
+        async logWebhook(data: Prisma.WebhookLogCreateInput): Promise<WebhookLog> {
+                return this.webhookLog.create({ data });
+        }
+
+        async createMessage(data: Prisma.MessageCreateInput): Promise<Message> {
+                return this.message.create({ data });
+        }
 }

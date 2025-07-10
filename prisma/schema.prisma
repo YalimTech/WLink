@@ -11,14 +11,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  admin
+  user
+}
+
+enum SubscriptionStatus {
+  trial
+  active
+  cancelled
+  expired
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+  failed
+}
+
 model User {
   id             String     @id
   companyId      String?
-  accessToken    String     @db.Text
-  refreshToken   String     @db.Text
+  email          String?    @unique
+  passwordHash   String?
+  role           Role       @default(user)
+  accessToken    String?    @db.Text
+  refreshToken   String?    @db.Text
   tokenExpiresAt DateTime?
   instances      Instance[]
+  subscriptions  Subscription[]
+  messages       Message[]
   createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 enum InstanceState {
@@ -39,7 +69,62 @@ model Instance {
   /// [InstanceSettings]
   settings         Json?          @default("{}") @db.Json
   name             String?
+  trialEndsAt      DateTime?
+  subscription     Subscription?
+  messages         Message[]
+  webhookLogs      WebhookLog[]
   createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
+  @@index([userId])
+}
+
+model Subscription {
+  id          Int             @id @default(autoincrement())
+  paypalId    String?         @unique
+  status      SubscriptionStatus
+  startDate   DateTime
+  endDate     DateTime?
+  instanceId  BigInt
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance    Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+
+  @@index([userId])
+  @@index([instanceId])
+}
+
+model Message {
+  id                Int             @id @default(autoincrement())
+  instanceId        BigInt
+  userId            String
+  ghlMessageId      String?         @unique
+  evolutionMessageId String?        @unique
+  direction         MessageDirection
+  status            MessageStatus
+  content           String?
+  attachments       Json?
+  createdAt         DateTime        @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instance Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([instanceId])
+}
+
+model WebhookLog {
+  id         Int       @id @default(autoincrement())
+  instanceId BigInt?
+  userId     String?
+  source     String
+  payload    Json
+  createdAt  DateTime  @default(now())
+
+  instance   Instance? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
   @@index([userId])
 }
