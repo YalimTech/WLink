@@ -2,44 +2,76 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator json {
-  provider = "prisma-json-types-generator"
-}
-
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id             String     @id
-  companyId      String?
-  accessToken    String     @db.Text
-  refreshToken   String     @db.Text
-  tokenExpiresAt DateTime?
-  instances      Instance[]
-  createdAt      DateTime   @default(now())
-}
-
-enum InstanceState {
-  notAuthorized
-  authorized
-  yellowCard
-  blocked
-  starting
+  id            String     @id @default(uuid())
+  email         String     @unique
+  passwordHash  String
+  role          Role       @default(USER)
+  instances     Instance[]
+  tokens        Token[]
+  subscription  Subscription?
+  createdAt     DateTime   @default(now())
 }
 
 model Instance {
-  id               BigInt         @id @default(autoincrement())
-  idInstance       BigInt         @unique
-  apiTokenInstance String
-  stateInstance    InstanceState?
-  userId           String
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// [InstanceSettings]
-  settings         Json?          @default("{}") @db.Json
-  name             String?
-  createdAt        DateTime       @default(now())
+  id            String     @id @default(uuid())
+  name          String
+  phoneNumber   String
+  apiToken      String
+  isActive      Boolean    @default(true)
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  messages      Message[]
+  createdAt     DateTime   @default(now())
+}
 
-  @@index([userId])
+model Message {
+  id            String     @id @default(uuid())
+  direction     MessageDirection
+  fromNumber    String
+  toNumber      String
+  message       String
+  timestamp     DateTime
+  instanceId    String
+  instance      Instance   @relation(fields: [instanceId], references: [id])
+}
+
+model WebhookLog {
+  id          String     @id @default(uuid())
+  payload     Json
+  source      String
+  createdAt   DateTime   @default(now())
+}
+
+model Token {
+  id              String     @id @default(uuid())
+  accessToken     String
+  refreshToken    String
+  expiresAt       DateTime
+  userId          String
+  user            User       @relation(fields: [userId], references: [id])
+}
+
+model Subscription {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  plan        String
+  isActive    Boolean    @default(true)
+  expiresAt   DateTime
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
 }
