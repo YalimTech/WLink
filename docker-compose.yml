@@ -2,9 +2,8 @@ version: '3.8'
 
 services:
   bridge:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    container_name: wlink-bridge
+    build: .
     ports:
       - "3000:3000"
     environment:
@@ -14,5 +13,4 @@ services:
       - GHL_CONVERSATION_PROVIDER_ID=${GHL_CONVERSATION_PROVIDER_ID}
       - APP_URL=${APP_URL}
       - GHL_SHARED_SECRET=${GHL_SHARED_SECRET}
-    command: sh -c "npx prisma migrate deploy && npm run build && npm run start:prod"
     restart: unless-stopped
