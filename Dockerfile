@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json ./
 COPY package-lock.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
@@ -13,5 +13,5 @@ RUN npx prisma generate && npm run build
 
 EXPOSE 3000
 
-CMD npx prisma migrate deploy && npm run start:prod
+CMD ["npx", "prisma", "migrate", "deploy", "&&", "npm", "run", "start:prod"]
 
