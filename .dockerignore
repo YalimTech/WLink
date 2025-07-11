@@ -1,7 +1,6 @@
 .gitignore
 .git
 .idea
-dist
 node_modules
 .env.example
 README.md
