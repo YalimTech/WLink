@@ -58,12 +58,17 @@ model Token {
 }
 
 model Subscription {
-  id          String     @id @default(uuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id])
-  plan        String
-  isActive    Boolean    @default(true)
-  expiresAt   DateTime
+  id             String     @id @default(uuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id])
+  instanceCount  Int                     // Cantidad de instancias permitidas
+  billingPeriod  Int                     // En meses (ej. 1, 3, 6, 12)
+  pricePerUnit   Float                   // Precio definido por admin por cada instancia por mes
+  discount       Float      @default(0)  // Descuento como decimal (ej. 0.15 = 15%)
+  totalAmount    Float                   // Calculado: instanceCount × pricePerUnit × billingPeriod × (1 - discount)
+  startDate      DateTime   @default(now())
+  expiresAt      DateTime
+  isActive       Boolean     @default(true)
 }
 
 enum Role {
