@@ -8,14 +8,38 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(uuid())
-  email         String     @unique
-  passwordHash  String
-  role          Role       @default(USER)
-  instances     Instance[]
-  tokens        Token[]
-  subscription  Subscription?
-  createdAt     DateTime   @default(now())
+  id          String     @id @default(uuid())
+  email       String     @unique
+  passwordHash String
+  role        Role       @default(USER)
+  tokens      Token[]
+  locations   Location[]
+  createdAt   DateTime   @default(now())
+}
+
+model Location {
+  id             String       @id @default(uuid())
+  name           String
+  ghlLocationId  String       @unique // ID único de la cuenta en GHL
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  instances      Instance[]
+  subscription   Subscription?
+  createdAt      DateTime     @default(now())
+}
+
+model Subscription {
+  id             String     @id @default(uuid())
+  locationId     String     @unique
+  location       Location   @relation(fields: [locationId], references: [id])
+  instanceCount  Int                     // Cantidad de instancias permitidas
+  billingPeriod  Int                     // En meses (ej. 1, 3, 6, 12)
+  pricePerUnit   Float                   // Precio definido por admin por cada instancia por mes
+  discount       Float      @default(0)  // Descuento como decimal (ej. 0.15 = 15%)
+  totalAmount    Float                   // Calculado: instanceCount × pricePerUnit × billingPeriod × (1 - discount)
+  startDate      DateTime   @default(now())
+  expiresAt      DateTime
+  isActive       Boolean     @default(true)
 }
 
 model Instance {
@@ -24,8 +48,8 @@ model Instance {
   phoneNumber   String
   apiToken      String
   isActive      Boolean    @default(true)
-  userId        String
-  user          User       @relation(fields: [userId], references: [id])
+  locationId    String
+  location      Location   @relation(fields: [locationId], references: [id])
   messages      Message[]
   createdAt     DateTime   @default(now())
 }
@@ -57,20 +81,6 @@ model Token {
   user            User       @relation(fields: [userId], references: [id])
 }
 
-model Subscription {
-  id             String     @id @default(uuid())
-  userId         String
-  user           User       @relation(fields: [userId], references: [id])
-  instanceCount  Int                     // Cantidad de instancias permitidas
-  billingPeriod  Int                     // En meses (ej. 1, 3, 6, 12)
-  pricePerUnit   Float                   // Precio definido por admin por cada instancia por mes
-  discount       Float      @default(0)  // Descuento como decimal (ej. 0.15 = 15%)
-  totalAmount    Float                   // Calculado: instanceCount × pricePerUnit × billingPeriod × (1 - discount)
-  startDate      DateTime   @default(now())
-  expiresAt      DateTime
-  isActive       Boolean     @default(true)
-}
-
 enum Role {
   USER
   ADMIN
@@ -80,3 +90,4 @@ enum MessageDirection {
   INBOUND
   OUTBOUND
 }
+
