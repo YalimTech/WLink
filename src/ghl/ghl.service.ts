@@ -193,17 +193,6 @@ export class GhlService extends BaseAdapter<
     }
   }
 
-async getGhlContact(locationId: string, contactId: string): Promise<GhlContact | null> {
-  try {
-    const httpClient = await this.getHttpClient(locationId);
-    const response = await httpClient.get(`/contacts/${contactId}`);
-    return response.data.contact as GhlContact;
-  } catch (error) {
-    this.logger.error(`Failed to fetch GHL contact ${contactId}: ${error.message}`);
-    return null;
-  }
-}
-
   async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact> {
     return this.findOrCreateGhlContact(locationId, phone);
   }
@@ -229,17 +218,9 @@ async getGhlContact(locationId: string, contactId: string): Promise<GhlContact |
   async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
     const httpClient = await this.getHttpClient(locationId);
     try {
-async postInboundMessageToGhl(
-  locationId: string,
-  message: GhPlatformMessage
-): Promise<SendResponse> {
-  const httpClient = await this.getHttpClient(locationId);
-  const response = await firstValueFrom(
-    httpClient.post("/conversations/messages/inbound", message)
-  );
-  return response.data;
-}
-
+      const response = await httpClient.post(
+        "/conversations/messages/inbound",
+        message,
       );
       return response.data as SendResponse;
     } catch (error) {
