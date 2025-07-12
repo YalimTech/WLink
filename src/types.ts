@@ -1,4 +1,34 @@
-import { User } from ".prisma/client";
+// Local copies of Prisma models used in the application. Prisma client
+// generation may fail in some environments, so we define the minimal
+// structures needed here.
+export interface User {
+  id: string;
+  companyId?: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  tokenExpiresAt?: Date | null;
+  createdAt: Date;
+}
+
+export enum InstanceState {
+  notAuthorized = "notAuthorized",
+  authorized = "authorized",
+  yellowCard = "yellowCard",
+  blocked = "blocked",
+  starting = "starting",
+}
+
+export interface Instance {
+  id: bigint;
+  idInstance: bigint;
+  name?: string | null;
+  phoneNumber?: string | null;
+  apiTokenInstance: string;
+  stateInstance?: InstanceState | null;
+  userId: string;
+  settings?: Record<string, any> | null;
+  createdAt: Date;
+}
 
 interface GhlPlatformAttachment {
 	url: string;
@@ -7,12 +37,17 @@ interface GhlPlatformAttachment {
 }
 
 export interface MessageStatusPayload {
-	status: "delivered" | "read" | "failed" | "pending";
-	error?: {
-		code: string;
-		type: string;
-		message: string;
-	};
+        status?: "delivered" | "read" | "failed" | "pending";
+        code?: string;
+        type?: string;
+        message?: string;
+        [key: string]: any;
+}
+
+export interface SendResponse {
+        id?: string;
+        status?: string;
+        [key: string]: any;
 }
 
 export interface AuthReq extends Request {
@@ -30,13 +65,16 @@ export interface GhlUserData {
 }
 
 export interface GhlPlatformMessage {
-	contactId: string;
-	locationId: string;
-	message: string;
-	direction: "inbound";
-	conversationProviderId?: string;
-	attachments?: GhlPlatformAttachment[];
-	timestamp?: Date;
+        contactId?: string;
+        locationId: string;
+        message: string;
+        direction: "inbound" | "outbound";
+        conversationProviderId?: string;
+        attachments?: GhlPlatformAttachment[];
+        timestamp?: Date;
+        phone?: string;
+        type?: string;
+        messageId?: string;
 }
 
 export type UserCreateData = Omit<User, "createdAt" | "instance"> & { id: string };
@@ -93,11 +131,11 @@ interface GhlAttributionSource {
 }
 
 export interface GhlContactUpsertRequest {
-	firstName?: string | null;
-	lastName?: string | null;
-	name?: string | null;
-	email?: string | null;
-	locationId: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        name?: string | null;
+        email?: string | null;
+        locationId: string;
 	gender?: string;
 	phone?: string | null;
 	address1?: string | null;
@@ -112,9 +150,10 @@ export interface GhlContactUpsertRequest {
 	tags?: string[];
 	customFields?: GhlCustomField[];
 	source?: string;
-	country?: string;
-	companyName?: string | null;
-	assignedTo?: string;
+        country?: string;
+        companyName?: string | null;
+        assignedTo?: string;
+        contact?: any;
 }
 
 export interface GhlContact {
@@ -162,3 +201,5 @@ export interface GhlContactUpsertResponse {
 	contact: GhlContact;
 	traceId: string;
 }
+
+

@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
 import { GhlPlatformMessage } from "../types";
-import { MessageTransformer, Message } from "../types/message.interface";
+import { MessageTransformer, EvolutionApiMessage } from "../types/message.interface";
 import { EvolutionWebhook } from "../types/evolution-webhook.interface";
-import { extractPhoneNumberFromVCard } from "../utils/format";
+import { extractPhoneNumberFromVCard } from "../../utils/format";
 
 @Injectable()
-export class GhlTransformer implements MessageTransformer<GhlWebhookDto, GhlPlatformMessage> {
+export class GhlTransformer implements MessageTransformer<GhlPlatformMessage, EvolutionWebhook> {
   private readonly logger = new Logger(GhlTransformer.name);
 
   toPlatformMessage(webhook: EvolutionWebhook): GhlPlatformMessage {
@@ -21,6 +21,15 @@ export class GhlTransformer implements MessageTransformer<GhlWebhookDto, GhlPlat
       const senderName = webhook.data?.senderName || "Unknown";
       const senderNumber = webhook.data?.from || "unknown";
       const msgData = webhook.data?.message;
+      if (!msgData) {
+        this.logger.warn('Message data missing in Evolution webhook');
+        return {
+          contactId: 'unknown',
+          locationId: 'unknown',
+          message: '',
+          direction: 'inbound',
+        };
+      }
 
       switch (msgData.type) {
         case "text":
@@ -53,26 +62,30 @@ export class GhlTransformer implements MessageTransformer<GhlWebhookDto, GhlPlat
           break;
         case "location":
           const loc = msgData.location;
-          messageText = [
-            "📍 Location shared:",
-            loc.name && `Name: ${loc.name}`,
-            loc.address && `Address: ${loc.address}`,
-            `Map: https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`,
-          ]
-            .filter(Boolean)
-            .join("\n");
+          if (loc) {
+            messageText = [
+              "📍 Location shared:",
+              loc.name && `Name: ${loc.name}`,
+              loc.address && `Address: ${loc.address}`,
+              `Map: https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`,
+            ]
+              .filter(Boolean)
+              .join("\n");
+          }
           break;
 
         case "contact":
           const contact = msgData.contact;
-          const phone = extractPhoneNumberFromVCard(contact?.vcard || "");
-          messageText = [
-            "👤 Contact shared:",
-            contact.displayName && `Name: ${contact.displayName}`,
-            phone && `Phone: ${phone}`,
-          ]
-            .filter(Boolean)
-            .join("\n");
+          if (contact) {
+            const phone = extractPhoneNumberFromVCard(contact.vcard || "");
+            messageText = [
+              "👤 Contact shared:",
+              contact.displayName && `Name: ${contact.displayName}`,
+              phone && `Phone: ${phone}`,
+            ]
+              .filter(Boolean)
+              .join("\n");
+          }
           break;
 
         default:
@@ -135,42 +148,40 @@ export class GhlTransformer implements MessageTransformer<GhlWebhookDto, GhlPlat
   }
 
 
-  toEvolutionApiMessage(ghlWebhook: GhlWebhookDto): Message {
-    this.logger.debug(`Transforming GHL Webhook to Evolution API Message: ${JSON.stringify(ghlWebhook)}`);
+  toEvolutionApiMessage(ghlMessage: GhlPlatformMessage): EvolutionApiMessage {
+    this.logger.debug(`Transforming GHL Webhook to Evolution API Message: ${JSON.stringify(ghlMessage)}`);
 
-    if (ghlWebhook.type === "SMS" && ghlWebhook.phone) {
-      const isGroup = ghlWebhook.phone.length > 16;
+    if (ghlMessage.direction === "inbound" && ghlMessage.locationId) {
+      const isGroup = (ghlMessage.contactId || "").length > 16;
       const chatId = isGroup
-        ? `${ghlWebhook.phone}@g.us`
-        : `${ghlWebhook.phone}@c.us`;
-
-      if (ghlWebhook.attachments?.length) {
-        const fileUrl = ghlWebhook.attachments[0];
+        ? `${ghlMessage.contactId}@g.us`
+        : `${ghlMessage.contactId}@c.us`;
+      if (ghlMessage.attachments?.length) {
+        const fileUrl = ghlMessage.attachments[0].url || ghlMessage.attachments[0] as any;
         return {
           type: "url-file",
           chatId,
           file: {
             url: fileUrl,
-            fileName: `${Date.now()}_${ghlWebhook.messageId || "file"}`,
+            fileName: `${Date.now()}_file`,
           },
-          caption: ghlWebhook.message || "",
+          caption: ghlMessage.message || "",
         };
       }
 
-      if (ghlWebhook.message) {
+      if (ghlMessage.message) {
         return {
           type: "text",
           chatId,
-          message: ghlWebhook.message,
+          message: ghlMessage.message,
         };
       }
 
-      this.logger.warn(`GHL webhook has neither message nor attachment for phone: ${ghlWebhook.phone}`);
-      throw new Error(`Empty GHL message for phone ${ghlWebhook.phone}`);
+      this.logger.warn(`GHL message has neither text nor attachment for contact: ${ghlMessage.contactId}`);
+      throw new Error(`Empty GHL message for contact ${ghlMessage.contactId}`);
     }
-
-    this.logger.error(`Unsupported GHL webhook type: ${ghlWebhook.type}`);
-    throw new Error(`Unsupported GHL webhook type: ${ghlWebhook.type}`);
+    this.logger.error(`Unsupported GHL message direction: ${ghlMessage.direction}`);
+    throw new Error(`Unsupported GHL message direction: ${ghlMessage.direction}`);
   }
 }
 

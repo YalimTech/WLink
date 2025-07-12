@@ -2,92 +2,43 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator json {
+  provider = "prisma-json-types-generator"
+}
+
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id          String     @id @default(uuid())
-  email       String     @unique
-  passwordHash String
-  role        Role       @default(USER)
-  tokens      Token[]
-  locations   Location[]
-  createdAt   DateTime   @default(now())
+  id             String    @id
+  companyId      String?
+  accessToken    String    @db.Text
+  refreshToken   String    @db.Text
+  tokenExpiresAt DateTime?
+  instance       Instance?
+  createdAt      DateTime  @default(now())
 }
 
-model Location {
-  id             String       @id @default(uuid())
-  name           String
-  ghlLocationId  String       @unique // ID único de la cuenta en GHL
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  instances      Instance[]
-  subscription   Subscription?
-  createdAt      DateTime     @default(now())
-}
-
-model Subscription {
-  id             String     @id @default(uuid())
-  locationId     String     @unique
-  location       Location   @relation(fields: [locationId], references: [id])
-  instanceCount  Int                     // Cantidad de instancias permitidas
-  billingPeriod  Int                     // En meses (ej. 1, 3, 6, 12)
-  pricePerUnit   Float                   // Precio definido por admin por cada instancia por mes
-  discount       Float      @default(0)  // Descuento como decimal (ej. 0.15 = 15%)
-  totalAmount    Float                   // Calculado: instanceCount × pricePerUnit × billingPeriod × (1 - discount)
-  startDate      DateTime   @default(now())
-  expiresAt      DateTime
-  isActive       Boolean     @default(true)
+enum InstanceState {
+  notAuthorized
+  authorized
+  yellowCard
+  blocked
+  starting
 }
 
 model Instance {
-  id            String     @id @default(uuid())
-  name          String
-  phoneNumber   String
-  apiToken      String
-  isActive      Boolean    @default(true)
-  locationId    String
-  location      Location   @relation(fields: [locationId], references: [id])
-  messages      Message[]
-  createdAt     DateTime   @default(now())
+  id               BigInt         @id @default(autoincrement())
+  idInstance       BigInt         @unique
+  name             String?
+  phoneNumber      String?
+  apiTokenInstance String
+  stateInstance    InstanceState?
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// [InstanceSettings]
+  settings         Json?          @default("{}") @db.Json
+  createdAt        DateTime       @default(now())
 }
-
-model Message {
-  id            String     @id @default(uuid())
-  direction     MessageDirection
-  fromNumber    String
-  toNumber      String
-  message       String
-  timestamp     DateTime
-  instanceId    String
-  instance      Instance   @relation(fields: [instanceId], references: [id])
-}
-
-model WebhookLog {
-  id          String     @id @default(uuid())
-  payload     Json
-  source      String
-  createdAt   DateTime   @default(now())
-}
-
-model Token {
-  id              String     @id @default(uuid())
-  accessToken     String
-  refreshToken    String
-  expiresAt       DateTime
-  userId          String
-  user            User       @relation(fields: [userId], references: [id])
-}
-
-enum Role {
-  USER
-  ADMIN
-}
-
-enum MessageDirection {
-  INBOUND
-  OUTBOUND
-}
-
