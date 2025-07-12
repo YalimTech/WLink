@@ -82,3 +82,7 @@ Para instalar las dependencias privadas durante el build se utiliza un fichero `
 ```bash
 NPM_TOKEN=xxxxxxxx docker compose build --secret id=npm_token,env=NPM_TOKEN
 ```
+
+Si no cuenta con acceso a los paquetes privados, puede omitir la variable
+`NPM_TOKEN` y la construcción seguirá adelante utilizando únicamente las
+dependencias públicas.

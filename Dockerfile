@@ -7,8 +7,12 @@ COPY package.json ./
 COPY package-lock.json ./
 COPY .npmrc .npmrc
 
-RUN --mount=type=secret,id=npm_token \
-    NPM_TOKEN=$(cat /run/secrets/npm_token) && \
+RUN --mount=type=secret,id=npm_token,required=false \
+    if [ -f /run/secrets/npm_token ]; then \
+        export NPM_TOKEN=$(cat /run/secrets/npm_token); \
+    else \
+        rm -f .npmrc; \
+    fi && \
     npm install && rm -f .npmrc
 
 COPY . .
