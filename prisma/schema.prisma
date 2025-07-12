@@ -32,9 +32,17 @@ enum InstanceState {
 model Instance {
   id               BigInt         @id @default(autoincrement())
   idInstance       BigInt         @unique
+  
+model Instance {
+  id              BigInt   @id @default(autoincrement())
+  idInstance      BigInt   @unique
+  phoneNumber     String?
   apiTokenInstance String
-  stateInstance    InstanceState?
-  userId           String         @unique
+  stateInstance   InstanceState?
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// [InstanceSettings]
   settings         Json?          @default("{}") @db.Json

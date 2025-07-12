@@ -15,15 +15,17 @@ import {
   GhlPlatformMessage,
   MessageStatusPayload,
   SendResponse,
+  User,
+  Instance,
 } from "../types";
 import { EvolutionWebhook } from "../types/evolution-webhook.interface";
 
 @Injectable()
 export class GhlService extends BaseAdapter<
-  GhlWebhookDto,
   GhlPlatformMessage,
-  any,
-  any
+  EvolutionWebhook,
+  User,
+  Instance
 > {
   private readonly ghlApiBaseUrl = "https://services.leadconnectorhq.com";
   private readonly ghlApiVersion = "2021-07-28";
@@ -172,8 +174,11 @@ export class GhlService extends BaseAdapter<
       };
 
       const httpClient = await this.getHttpClient(locationId);
-      const createResponse = await httpClient.post("/contacts/upsert", contactPayload);
-      return createResponse.data.contact as GhlContactUpsertResponse;
+      const createResponse = await httpClient.post(
+        "/contacts/upsert",
+        contactPayload,
+      );
+      return createResponse.data.contact as any;
     }
   }
 
@@ -188,6 +193,17 @@ export class GhlService extends BaseAdapter<
     }
   }
 
+async getGhlContact(locationId: string, contactId: string): Promise<GhlContact | null> {
+  try {
+    const httpClient = await this.getHttpClient(locationId);
+    const response = await httpClient.get(`/contacts/${contactId}`);
+    return response.data.contact as GhlContact;
+  } catch (error) {
+    this.logger.error(`Failed to fetch GHL contact ${contactId}: ${error.message}`);
+    return null;
+  }
+}
+
   async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact> {
     return this.findOrCreateGhlContact(locationId, phone);
   }
@@ -196,7 +212,7 @@ export class GhlService extends BaseAdapter<
     locationId: string,
     messageId: string,
     status: "sent" | "delivered" | "read" | "failed",
-    meta: MessageStatusPayload = {},
+    meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
     try {
       const httpClient = await this.getHttpClient(locationId);
@@ -213,8 +229,17 @@ export class GhlService extends BaseAdapter<
   async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
     const httpClient = await this.getHttpClient(locationId);
     try {
-      const response = await firstValueFrom(
-        httpClient.post("/conversations/messages/inbound", message),
+async postInboundMessageToGhl(
+  locationId: string,
+  message: GhPlatformMessage
+): Promise<SendResponse> {
+  const httpClient = await this.getHttpClient(locationId);
+  const response = await firstValueFrom(
+    httpClient.post("/conversations/messages/inbound", message)
+  );
+  return response.data;
+}
+
       );
       return response.data as SendResponse;
     } catch (error) {
@@ -268,10 +293,11 @@ export class GhlService extends BaseAdapter<
     try {
       const message: GhlPlatformMessage = {
         direction: "outbound",
+        locationId: ghlWebhook.locationId,
         message: ghlWebhook.message,
         phone: ghlWebhook.phone,
         type: ghlWebhook.type,
-        attachments: ghlWebhook.attachments,
+        attachments: ghlWebhook.attachments?.map((url) => ({ url })),
         messageId: ghlWebhook.messageId,
       };
 
@@ -295,10 +321,11 @@ export class GhlService extends BaseAdapter<
     const locationId = instance.userId;
     const inbound: GhlPlatformMessage = {
       direction: "inbound",
-      phone: webhook.messageData.senderData.chatId.replace("@c.us", ""),
-      message: webhook.messageData.textMessageData?.textMessage || "",
-      messageId: webhook.messageData.idMessage,
-      type: webhook.messageData.typeMessage,
+      locationId,
+      phone: webhook.messageData?.senderData.chatId.replace("@c.us", ""),
+      message: webhook.messageData?.textMessageData?.textMessage || "",
+      messageId: webhook.messageData?.idMessage,
+      type: webhook.messageData?.typeMessage,
     };
 
     await this.postInboundMessageToGhl(locationId, inbound);

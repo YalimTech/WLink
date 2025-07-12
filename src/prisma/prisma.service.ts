@@ -34,8 +34,8 @@ export class PrismaService
 
     return this.user.upsert({
       where: { id: data.id },
-      update: { ...data },
-      create: { ...data },
+      update: data as any,
+      create: data as any,
     });
   }
 
@@ -51,7 +51,7 @@ export class PrismaService
   ): Promise<User> {
     return this.user.update({
       where: { id: identifier },
-      data,
+      data: data as any,
     });
   }
 
@@ -69,7 +69,7 @@ export class PrismaService
   ): Promise<User> {
     return this.user.update({
       where: { id: userId },
-      data: { accessToken, refreshToken, tokenExpiresAt },
+      data: { accessToken, refreshToken, tokenExpiresAt } as any,
     });
   }
 
@@ -106,10 +106,11 @@ export class PrismaService
         stateInstance: stateInstance || InstanceState.notAuthorized,
         settings: instanceData.settings || {},
         name: instanceData.name,
+        phoneNumber: instanceData.phoneNumber,
         user: {
           connect: { id: ghlLocationId },
         },
-      },
+      } as any,
     });
   }
 

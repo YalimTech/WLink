@@ -92,3 +92,6 @@ NPM_TOKEN=xxxxxxxx docker compose build --secret id=npm_token,env=NPM_TOKEN
 Si no cuenta con acceso a los paquetes privados, puede omitir la variable
 `NPM_TOKEN` y la construcción seguirá adelante utilizando únicamente las
 dependencias públicas.
+
+### Generar Prisma Client sin conexión
+Si el entorno bloquea la descarga de binarios de Prisma, defina `PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1` antes de ejecutar `npx prisma generate` para omitir la verificación de suma.
