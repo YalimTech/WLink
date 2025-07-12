@@ -66,5 +66,5 @@ Si el entorno bloquea la descarga de binarios de Prisma, defina PRISMA_ENGINES_C
 
 ### Configuración del entorno
 Copie el archivo `.env.example` a `.env` y defina la variable `DATABASE_URL` con su cadena de conexión de PostgreSQL.
-Si usa `docker-compose`, evite poner comillas alrededor de la URL para que la variable se expanda correctamente.
+
 La URL debe comenzar con `postgresql://` o `postgres://` conforme a la [documentación de Prisma](https://www.prisma.io/docs/orm/prisma-schema#datasource). Ajuste también el resto de variables siguiendo sus credenciales de GoHighLevel y Evolution API.
