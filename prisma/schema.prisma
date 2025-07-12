@@ -7,7 +7,7 @@ generator json {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -32,17 +32,11 @@ enum InstanceState {
 model Instance {
   id               BigInt         @id @default(autoincrement())
   idInstance       BigInt         @unique
-  
-model Instance {
-  id              BigInt   @id @default(autoincrement())
-  idInstance      BigInt   @unique
-  phoneNumber     String?
+  name             String?
+  phoneNumber      String?
   apiTokenInstance String
-  stateInstance   InstanceState?
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
+  stateInstance    InstanceState?
+  userId           String
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// [InstanceSettings]
   settings         Json?          @default("{}") @db.Json
