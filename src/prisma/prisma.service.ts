@@ -9,7 +9,7 @@ import {
 import {
   StorageProvider,
   Settings,
-} from "@green-api/greenapi-integration";
+} from "@evolution-api/evolutionapi-integration";
 import { UserCreateData, UserUpdateData } from "../types";
 
 function parseBigInt(id: number | string | bigint): bigint {
