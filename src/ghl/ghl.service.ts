@@ -17,6 +17,7 @@ import {
   SendResponse,
   User,
   Instance,
+  InstanceState,
 } from "../types";
 import { EvolutionWebhook } from "../types/evolution-webhook.interface";
 
@@ -193,17 +194,6 @@ export class GhlService extends BaseAdapter<
     }
   }
 
-async getGhlContact(locationId: string, contactId: string): Promise<GhlContact | null> {
-  try {
-    const httpClient = await this.getHttpClient(locationId);
-    const response = await httpClient.get(`/contacts/${contactId}`);
-    return response.data.contact as GhlContact;
-  } catch (error) {
-    this.logger.error(`Failed to fetch GHL contact ${contactId}: ${error.message}`);
-    return null;
-  }
-}
-
   async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact> {
     return this.findOrCreateGhlContact(locationId, phone);
   }
@@ -229,17 +219,9 @@ async getGhlContact(locationId: string, contactId: string): Promise<GhlContact |
   async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
     const httpClient = await this.getHttpClient(locationId);
     try {
-async postInboundMessageToGhl(
-  locationId: string,
-  message: GhPlatformMessage
-): Promise<SendResponse> {
-  const httpClient = await this.getHttpClient(locationId);
-  const response = await firstValueFrom(
-    httpClient.post("/conversations/messages/inbound", message)
-  );
-  return response.data;
-}
-
+      const response = await httpClient.post(
+        "/conversations/messages/inbound",
+        message,
       );
       return response.data as SendResponse;
     } catch (error) {
@@ -309,8 +291,12 @@ async postInboundMessageToGhl(
   }
 
   async handleEvolutionWebhook(webhook: EvolutionWebhook): Promise<void> {
+    const idInstance =
+      typeof webhook.instanceId === "bigint"
+        ? webhook.instanceId
+        : BigInt(webhook.instanceId as any);
     const instance = await this.prisma.instance.findFirst({
-      where: { idInstance: webhook.instanceId },
+      where: { idInstance },
     });
 
     if (!instance) {
@@ -331,12 +317,15 @@ async postInboundMessageToGhl(
     await this.postInboundMessageToGhl(locationId, inbound);
   }
 
-  async updateInstanceState(instanceId: string, newState: string): Promise<void> {
+  async updateInstanceState(
+    instanceId: string | number | bigint,
+    newState: InstanceState | string,
+  ): Promise<void> {
     try {
       await this.prisma.instance.update({
-        where: { idInstance: instanceId },
+        where: { idInstance: BigInt(instanceId as any) },
         data: {
-          stateInstance: newState,
+          stateInstance: newState as InstanceState,
         },
       });
       this.logger.log(`Instance ${instanceId} state updated to ${newState}`);
@@ -348,27 +337,28 @@ async postInboundMessageToGhl(
 
   async createEvolutionInstanceForUser(
     userId: string,
-    instanceId: string,
+    instanceId: string | number | bigint,
     apiToken: string,
     wid?: string,
     name?: string,
   ): Promise<Instance> {
+    const idInst = BigInt(instanceId as any);
     const existing = await this.prisma.instance.findFirst({
-      where: { idInstance: instanceId },
+      where: { idInstance: idInst },
     });
 
     if (existing) {
       this.logger.warn(`Instance ${instanceId} already exists. Skipping creation.`);
-      return existing;
+      return existing as unknown as Instance;
     }
 
     const newInstance = await this.prisma.instance.create({
       data: {
-        idInstance: instanceId,
+        idInstance: idInst,
         apiTokenInstance: apiToken,
         userId,
         name: name || `Evolution ${instanceId}`,
-        stateInstance: "authorized",
+        stateInstance: InstanceState.authorized,
         settings: {
           wid,
         },
@@ -376,20 +366,25 @@ async postInboundMessageToGhl(
     });
 
     this.logger.log(`New Evolution API instance created for user ${userId}: ${instanceId}`);
-    return newInstance;
+    return newInstance as unknown as Instance;
   }
 
-  async handleStateWebhook(instanceId: string, newState: string, wid?: string): Promise<void> {
-    await this.updateInstanceState(instanceId, newState);
+  async handleStateWebhook(
+    instanceId: string | number | bigint,
+    newState: string,
+    wid?: string,
+  ): Promise<void> {
+    await this.updateInstanceState(instanceId, newState as InstanceState);
 
     if (wid) {
+      const idInst = BigInt(instanceId as any);
       const instance = await this.prisma.instance.findUnique({
-        where: { idInstance: instanceId },
+        where: { idInstance: idInst },
       });
 
       if (instance && instance.settings?.wid !== wid) {
         await this.prisma.instance.update({
-          where: { idInstance: instanceId },
+          where: { idInstance: idInst },
           data: {
             settings: {
               ...instance.settings,

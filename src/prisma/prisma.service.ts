@@ -99,7 +99,7 @@ export class PrismaService
       throw new Error(`Instance with ID ${idInstance} already exists.`);
     }
 
-    return this.instance.create({
+    return (await this.instance.create({
       data: {
         idInstance,
         apiTokenInstance: instanceData.apiTokenInstance,
@@ -111,49 +111,49 @@ export class PrismaService
           connect: { id: ghlLocationId },
         },
       } as any,
-    });
+    })) as unknown as Instance;
   }
 
   async getInstance(idInstance: number | string | bigint): Promise<(Instance & { user: User }) | null> {
-    return this.instance.findUnique({
+    return (await this.instance.findUnique({
       where: { idInstance: parseBigInt(idInstance) },
       include: { user: true },
-    });
+    })) as unknown as (Instance & { user: User }) | null;
   }
 
   async getInstancesByUserId(userId: string): Promise<Instance[]> {
-    return this.instance.findMany({
+    return (await this.instance.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-    });
+    })) as unknown as Instance[];
   }
 
   async removeInstance(idInstance: number | string | bigint): Promise<Instance> {
-    return this.instance.delete({
+    return (await this.instance.delete({
       where: { idInstance: parseBigInt(idInstance) },
-    });
+    })) as unknown as Instance;
   }
 
   async updateInstanceSettings(idInstance: number | string | bigint, settings: Settings): Promise<Instance> {
-    return this.instance.update({
+    return (await this.instance.update({
       where: { idInstance: parseBigInt(idInstance) },
       data: { settings: settings || {} },
-    });
+    })) as unknown as Instance;
   }
 
   async updateInstanceState(idInstance: number | string | bigint, state: InstanceState): Promise<Instance> {
-    return this.instance.update({
+    return (await this.instance.update({
       where: { idInstance: parseBigInt(idInstance) },
       data: { stateInstance: state },
-    });
+    })) as unknown as Instance;
   }
 
   async updateInstanceName(idInstance: number | string | bigint, name: string): Promise<Instance & { user: User }> {
-    return this.instance.update({
+    return (await this.instance.update({
       where: { idInstance: parseBigInt(idInstance) },
       data: { name },
       include: { user: true },
-    });
+    })) as unknown as Instance & { user: User };
   }
 }
 
