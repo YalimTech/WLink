@@ -82,12 +82,12 @@ export class GhlController {
 		}
 
 		try {
-			const instance = await this.ghlService.createEvolutionInstanceForUser(
-				dto.locationId,
-				BigInt(dto.instanceId),
-				dto.apiToken,
-				dto.name,
-			);
+        const instance = await this.ghlService.createEvolutionInstanceForUser(
+                                dto.locationId,
+                                dto.instanceId,
+                                dto.apiToken,
+                                dto.name,
+                        );
 
 			return {
 				success: true,

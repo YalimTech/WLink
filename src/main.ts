@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
-import { Settings } from "@evolution-api/evolutionapi-integration";
+import { Settings } from "./evolutionapi";
 
 declare global {
 	namespace PrismaJson {

@@ -6,10 +6,7 @@ import {
   Instance,
   Prisma,
 } from "@prisma/client";
-import {
-  StorageProvider,
-  Settings,
-} from "@evolution-api/evolutionapi-integration";
+import { StorageProvider, Settings } from "../evolutionapi";
 import { UserCreateData, UserUpdateData } from "../types";
 
 function parseBigInt(id: number | string | bigint): bigint {

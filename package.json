@@ -19,7 +19,6 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/throttler": "^6.4.0",
-    "@evolution-api/evolutionapi-integration": "^0.7.1",
     "@prisma/client": "^6.6.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
