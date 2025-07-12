@@ -14,7 +14,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Controller("webhooks")
-export class EvolutionController {
+export class WebhooksController {
   constructor(
     private readonly ghlService: GhlService,
     private readonly configService: ConfigService,
@@ -56,10 +56,16 @@ export class EvolutionController {
 
         // 🚀 Reenviar mensaje a GHL como mensaje inbound
         await this.ghlService.sendInboundMessageToGhl({
-          locationId: instance.userId, // en este caso userId actúa como locationId
-          contactId: contact.id,
-          conversationProviderId: this.configService.get("GHL_CONVERSATION_PROVIDER_ID"),
-          message: body,
+          locationId: instance.userId,
+          message: {
+            contactId: contact.id,
+            locationId: instance.userId,
+            message: body,
+            direction: "inbound",
+            conversationProviderId: this.configService.get(
+              "GHL_CONVERSATION_PROVIDER_ID",
+            ),
+          },
         });
       }
     } catch (error) {

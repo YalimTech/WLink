@@ -44,6 +44,12 @@ Este repositorio es de uso interno. Ninguna parte de este código puede ser copi
 
 Para obtener una licencia comercial o consultar sobre colaboración, escríbenos a: `tucorreo@tudominio.com`.
 
+## 🔁 Sincronización de conversaciones
+WLink Bridge mantiene un único hilo por cliente en GoHighLevel donde se integran todos los mensajes de WhatsApp. Cada location puede gestionar varios números a la vez y distinguirlos por su avatar.
+
+## 💳 Suscripciones flexibles
+Las instancias se contratan por periodos mensuales o mayores. El administrador define precios y descuentos y el pago se realiza con PayPal. Al expirar la suscripción las instancias se desactivan hasta renovarla.
+
 ---
 
 ## 🛠 Estado del desarrollo
