@@ -26,6 +26,14 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   async onModuleInit() {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
+      this.logger.error(
+        'Invalid DATABASE_URL. It must start with "postgresql://" or "postgres://"',
+      );
+      throw new Error('Invalid DATABASE_URL');
+    }
+
     const retries = parseInt(process.env.DB_CONNECT_RETRIES || '5', 10);
     const delayMs = parseInt(process.env.DB_CONNECT_DELAY_MS || '2000', 10);
 
