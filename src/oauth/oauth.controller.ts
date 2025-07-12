@@ -215,7 +215,7 @@ export class GhlOauthController {
 					<p>Your workspace has been successfully connected to WLink.</p>
 					
 					<div class="highlight">
-					  You can now manage your WhatsApp instances through the GREEN-API WhatsApp app's page (located in the navigation panel on the left).
+                                          You can now manage your WhatsApp instances through the Evolution API WhatsApp app's page (located in the navigation panel on the left).
 					</div>
 					
 					<div class="close-note">
