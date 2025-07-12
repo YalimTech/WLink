@@ -1,13 +1,13 @@
 import { Injectable, OnModuleInit, NotFoundException } from "@nestjs/common";
+import { PrismaClient, Prisma } from "@prisma/client";
+import { StorageProvider, Settings } from "../evolutionapi";
 import {
   InstanceState,
-  PrismaClient,
   User,
   Instance,
-  Prisma,
-} from "@prisma/client";
-import { StorageProvider, Settings } from "../evolutionapi";
-import { UserCreateData, UserUpdateData } from "../types";
+  UserCreateData,
+  UserUpdateData,
+} from "../types";
 
 function parseBigInt(id: number | string | bigint): bigint {
   return typeof id === "bigint" ? id : BigInt(id);
@@ -74,7 +74,7 @@ export class PrismaService
   }
 
 
-  async createInstance(instanceData: Prisma.InstanceCreateInput): Promise<Instance> {
+  async createInstance(instanceData: any): Promise<Instance> {
     const ghlLocationId = instanceData.user?.connect?.id;
     const stateInstance = instanceData.stateInstance;
     const idInstance = parseBigInt(instanceData.idInstance);

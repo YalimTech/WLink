@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance, AxiosError } from "axios";
 import { HttpService } from "@nestjs/axios";
+import { firstValueFrom } from "rxjs";
 import { BaseAdapter, NotFoundError, IntegrationError } from "../core/base-adapter";
 import { GhlTransformer } from "./ghl.transformer";
 import { PrismaService } from "../prisma/prisma.service";
@@ -176,6 +177,21 @@ export class GhlService extends BaseAdapter<
     }
   }
 
+  async getGhlContact(locationId: string, contactId: string): Promise<GhlContact | null> {
+    try {
+      const httpClient = await this.getHttpClient(locationId);
+      const response = await httpClient.get(`/contacts/${contactId}`);
+      return response.data.contact as GhlContact;
+    } catch (error) {
+      this.logger.error(`Failed to fetch GHL contact ${contactId}: ${error.message}`);
+      return null;
+    }
+  }
+
+  async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact> {
+    return this.findOrCreateGhlContact(locationId, phone);
+  }
+
   async updateGhlMessageStatus(
     locationId: string,
     messageId: string,
@@ -197,12 +213,22 @@ export class GhlService extends BaseAdapter<
   async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
     const httpClient = await this.getHttpClient(locationId);
     try {
-      const response = await httpClient.post("/conversations/messages/inbound", message);
+      const response = await firstValueFrom(
+        httpClient.post("/conversations/messages/inbound", message),
+      );
       return response.data as SendResponse;
     } catch (error) {
       this.logger.error(`Failed to POST inbound message to GHL: ${error.message}`);
       throw new IntegrationError(`Failed to POST inbound message to GHL`);
     }
+  }
+
+  // Backwards compatibility
+  async sendInboundMessageToGhl(payload: {
+    locationId: string;
+    message: GhlPlatformMessage;
+  }): Promise<SendResponse> {
+    return this.postInboundMessageToGhl(payload.locationId, payload.message);
   }
 
   async createPlatformClient(locationId: string): Promise<HttpService> {
@@ -220,7 +246,9 @@ export class GhlService extends BaseAdapter<
   async sendToPlatform(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
     const client = await this.createPlatformClient(locationId);
     try {
-      const response = await client.post("/conversations/messages/send", message);
+      const response = await firstValueFrom(
+        client.post("/conversations/messages/send", message),
+      );
       return response.data as SendResponse;
     } catch (error) {
       this.logger.error("Error sending message to GHL", error);

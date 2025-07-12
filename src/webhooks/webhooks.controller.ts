@@ -14,7 +14,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Controller("webhooks")
-export class EvolutionController {
+export class WebhooksController {
   constructor(
     private readonly ghlService: GhlService,
     private readonly configService: ConfigService,
