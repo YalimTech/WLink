@@ -1,13 +1,15 @@
-import { Module } from "@nestjs/common";
-import { GhlOauthController } from "./oauth.controller";
-import { AuthController } from "../auth.controller";
-import { ConfigModule } from "@nestjs/config";
-import { PrismaService } from "../prisma/prisma.service";
-import { GhlOAuthCallbackDto } from "./dto/ghl-oauth-callback.dto";
+import { Module } from '@nestjs/common';
+import { GhlOauthController } from './oauth.controller';
+import { AuthController } from '../auth.controller';
+import { AuthService } from '../auth.service';
+import { ConfigModule } from '@nestjs/config';
+import { EvolutionModule } from '../evolution/evolution.module';
+import { PrismaService } from '../common/prisma.service'; // Si usas Prisma
 
 @Module({
-  imports: [ConfigModule], // para poder usar ConfigService
+  imports: [ConfigModule, EvolutionModule],
   controllers: [GhlOauthController, AuthController],
-  providers: [PrismaService],
+  providers: [AuthService, PrismaService],
 })
 export class OauthModule {}
+
