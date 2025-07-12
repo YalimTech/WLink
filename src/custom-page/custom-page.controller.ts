@@ -76,7 +76,7 @@ export class CustomPageController {
       <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <title>WhatsApp Integration - GREEN-API</title>
+        <title>WhatsApp Integration - Evolution API</title>
         <style>
           * {
             margin: 0;
@@ -722,7 +722,7 @@ export class CustomPageController {
               </svg>
               <h1>WhatsApp Integration</h1>
             </div>
-            <p>Manage your GREEN-API instances with ease</p>
+            <p>Manage your Evolution API instances with ease</p>
           </div>
 
           <div class="content">
@@ -759,7 +759,7 @@ export class CustomPageController {
                   
                   <div class="form-group">
                     <label for="apiToken">API Token</label>
-                    <input type="text" id="apiToken" name="apiToken" placeholder="Your GREEN-API token" required>
+                    <input type="text" id="apiToken" name="apiToken" placeholder="Your Evolution API token" required>
                   </div>
                   
                   <div class="form-group">
@@ -916,10 +916,10 @@ export class CustomPageController {
               }, 10000);
             }
             
-            openGreenApiConsole(instanceId) {
-			  const consoleUrl = \`https://console.green-api.com/instanceList/\${instanceId}\`;
-			  window.open(consoleUrl, '_blank', 'noopener,noreferrer');
-			}
+            openEvolutionConsole(instanceId) {
+                          const consoleUrl = \`https://console.evolution-api.com/instanceList/\${instanceId}\`;
+                          window.open(consoleUrl, '_blank', 'noopener,noreferrer');
+                        }
 
             handleMessage(event) {
               if (event.data && event.data.message === 'REQUEST_USER_DATA_RESPONSE') {
@@ -1056,7 +1056,7 @@ export class CustomPageController {
                     <strong>Created:</strong> \${new Date(instance.createdAt).toLocaleDateString()}
                   </div>
                   <div class="instance-actions">
-                  	<button onclick="window.instanceHandler.openGreenApiConsole('\${instance.id}')" class="btn" title="Open GREEN-API Console">
+                        <button onclick="window.instanceHandler.openEvolutionConsole('\${instance.id}')" class="btn" title="Open Evolution API Console">
 					  Open Console
 					</button>
                     <button onclick="window.instanceHandler.toggleEditMode('\${instance.id}')" class="btn secondary">Edit Name</button>
