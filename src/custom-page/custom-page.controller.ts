@@ -1,13 +1,13 @@
 import { Controller, Get, Post, Body, Res, HttpCode, HttpStatus } from "@nestjs/common";
 import { Response } from "express";
 import { PrismaService } from "../prisma/prisma.service";
-import { GreenApiLogger } from "@green-api/greenapi-integration";
+import { EvolutionApiLogger } from "@evolution-api/evolutionapi-integration";
 import { ConfigService } from "@nestjs/config";
 import * as CryptoJS from "crypto-js";
 
 @Controller("app")
 export class CustomPageController {
-	private readonly logger = GreenApiLogger.getInstance(CustomPageController.name);
+        private readonly logger = EvolutionApiLogger.getInstance(CustomPageController.name);
 
 	constructor(
 		private readonly prisma: PrismaService,
