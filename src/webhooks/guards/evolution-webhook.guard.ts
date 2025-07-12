@@ -1,5 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
-import { BaseEvolutionApiAuthGuard } from "@evolution-api/evolutionapi-integration"; // Asegúrate de que esta ruta sea correcta
+import { BaseEvolutionApiAuthGuard } from "../../evolutionapi";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()

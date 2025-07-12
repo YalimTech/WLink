@@ -1,11 +1,11 @@
 import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios, { AxiosInstance, AxiosError } from "axios";
+import { HttpService } from "@nestjs/axios";
 import { BaseAdapter, NotFoundError, IntegrationError } from "../core/base-adapter";
 import { GhlTransformer } from "./ghl.transformer";
 import { PrismaService } from "../prisma/prisma.service";
 import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
-import { Instance, User } from "@prisma/client";
 import { randomBytes } from "crypto";
 import {
   GhlContact,
@@ -21,8 +21,8 @@ import { EvolutionWebhook } from "../types/evolution-webhook.interface";
 export class GhlService extends BaseAdapter<
   GhlWebhookDto,
   GhlPlatformMessage,
-  User,
-  Instance
+  any,
+  any
 > {
   private readonly ghlApiBaseUrl = "https://services.leadconnectorhq.com";
   private readonly ghlApiVersion = "2021-07-28";
