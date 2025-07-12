@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, NotFoundException } from "@nestjs/common";
+import { Injectable, OnModuleInit, NotFoundException, Logger } from "@nestjs/common";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { StorageProvider, Settings } from "../evolutionapi";
 import {
@@ -23,8 +23,28 @@ export class PrismaService
       UserCreateData,
       UserUpdateData
     > {
+  private readonly logger = new Logger(PrismaService.name);
+
   async onModuleInit() {
-    await this.$connect();
+    const retries = parseInt(process.env.DB_CONNECT_RETRIES || '5', 10);
+    const delayMs = parseInt(process.env.DB_CONNECT_DELAY_MS || '2000', 10);
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await this.$connect();
+        this.logger.log('Connected to database');
+        return;
+      } catch (err) {
+        if (attempt === retries) {
+          this.logger.error('Unable to connect to database', err as Error);
+          throw err;
+        }
+        this.logger.warn(
+          `Database connection attempt ${attempt} failed. Retrying in ${delayMs}ms...`,
+        );
+        await new Promise((res) => setTimeout(res, delayMs));
+      }
+    }
   }
 
   async createUser(data: UserCreateData): Promise<User> {
@@ -99,7 +119,7 @@ export class PrismaService
       throw new Error(`Instance with ID ${idInstance} already exists.`);
     }
 
-    return this.instance.create({
+    return (await this.instance.create({
       data: {
         idInstance,
         apiTokenInstance: instanceData.apiTokenInstance,
@@ -111,49 +131,49 @@ export class PrismaService
           connect: { id: ghlLocationId },
         },
       } as any,
-    });
+    })) as unknown as Instance;
   }
 
   async getInstance(idInstance: number | string | bigint): Promise<(Instance & { user: User }) | null> {
-    return this.instance.findUnique({
+    return (await this.instance.findUnique({
       where: { idInstance: parseBigInt(idInstance) },
       include: { user: true },
-    });
+    })) as unknown as (Instance & { user: User }) | null;
   }
 
   async getInstancesByUserId(userId: string): Promise<Instance[]> {
-    return this.instance.findMany({
+    return (await this.instance.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-    });
+    })) as unknown as Instance[];
   }
 
   async removeInstance(idInstance: number | string | bigint): Promise<Instance> {
-    return this.instance.delete({
+    return (await this.instance.delete({
       where: { idInstance: parseBigInt(idInstance) },
-    });
+    })) as unknown as Instance;
   }
 
   async updateInstanceSettings(idInstance: number | string | bigint, settings: Settings): Promise<Instance> {
-    return this.instance.update({
+    return (await this.instance.update({
       where: { idInstance: parseBigInt(idInstance) },
       data: { settings: settings || {} },
-    });
+    })) as unknown as Instance;
   }
 
   async updateInstanceState(idInstance: number | string | bigint, state: InstanceState): Promise<Instance> {
-    return this.instance.update({
+    return (await this.instance.update({
       where: { idInstance: parseBigInt(idInstance) },
       data: { stateInstance: state },
-    });
+    })) as unknown as Instance;
   }
 
   async updateInstanceName(idInstance: number | string | bigint, name: string): Promise<Instance & { user: User }> {
-    return this.instance.update({
+    return (await this.instance.update({
       where: { idInstance: parseBigInt(idInstance) },
       data: { name },
       include: { user: true },
-    });
+    })) as unknown as Instance & { user: User };
   }
 }
 

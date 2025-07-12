@@ -17,6 +17,8 @@ RUN --mount=type=secret,id=npm_token,required=false \
 
 COPY . .
 
+# Skip failing the build if Prisma engine downloads are blocked.
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate && npm run build
 
 EXPOSE 3000

@@ -1,3 +1,6 @@
+// Local copies of Prisma models used in the application. Prisma client
+// generation may fail in some environments, so we define the minimal
+// structures needed here.
 export interface User {
   id: string;
   companyId?: string | null;
@@ -18,8 +21,8 @@ export enum InstanceState {
 export interface Instance {
   id: bigint;
   idInstance: bigint;
-  phoneNumber?: string | null;
   name?: string | null;
+  phoneNumber?: string | null;
   apiTokenInstance: string;
   stateInstance?: InstanceState | null;
   userId: string;
@@ -27,18 +30,24 @@ export interface Instance {
   createdAt: Date;
 }
 
+interface GhlPlatformAttachment {
+	url: string;
+	fileName?: string;
+	type?: string;
+}
+
 export interface MessageStatusPayload {
-  status?: "delivered" | "read" | "failed" | "pending";
-  locationId: string;
-  messageId: string;
-  message?: string;
-  error?: string;
+        status?: "delivered" | "read" | "failed" | "pending";
+        code?: string;
+        type?: string;
+        message?: string;
+        [key: string]: any;
 }
 
 export interface SendResponse {
-  status: string;
-  message: string;
-  any?: any;
+        id?: string;
+        status?: string;
+        [key: string]: any;
 }
 
 export interface AuthReq extends Request {
@@ -46,143 +55,151 @@ export interface AuthReq extends Request {
 }
 
 export interface GhlUserData {
-  userId: string;
-  companyId: string;
-  roles: string[];
-  type: "agency";
-  username: string;
-  email: string;
-  active: boolean;
+	userId: string;
+	companyId: string;
+	role: string;
+	type: "location" | "agency";
+	userName: string;
+	email: string;
+	activeLocation: string;
 }
 
-export interface GhPlatformMessage {
-  contactId: string;
-  locationId: string;
-  message: string;
-  direction: "inbound" | "outbound";
-  conversationProviderId?: string;
-  attachments?: GhPlatformAttachment[];
-  timestamp?: Date;
+export interface GhlPlatformMessage {
+        contactId?: string;
+        locationId: string;
+        message: string;
+        direction: "inbound" | "outbound";
+        conversationProviderId?: string;
+        attachments?: GhlPlatformAttachment[];
+        timestamp?: Date;
+        phone?: string;
+        type?: string;
+        messageId?: string;
 }
 
-export interface GhPlatformAttachment {
-  url?: string;
-  fileUrl?: string;
-  filename?: string;
-  caption?: string;
+export type UserCreateData = Omit<User, "createdAt" | "instance"> & { id: string };
+export type UserUpdateData = Partial<Omit<UserCreateData, "id">>;
+
+interface GhlDndChannelSettings {
+	status: string;
+	message: string;
+	code?: string;
 }
 
-export interface GhlChannelSettings {
-  call: GhlInboundSettings;
-  email: GhlInboundSettings;
-  sms: GhlInboundSettings;
-  whatsapp: GhlInboundSettings;
-  fb: GhlInboundSettings;
+interface GhlDndSettings {
+	Call: GhlDndChannelSettings;
+	Email: GhlDndChannelSettings;
+	SMS: GhlDndChannelSettings;
+	WhatsApp: GhlDndChannelSettings;
+	GMB: GhlDndChannelSettings;
+	FB: GhlDndChannelSettings;
 }
 
-export interface GhlInboundSettings {
-  all: {
-    status: string;
-    message: string;
-  };
+interface GhlInboundDndSettings {
+	all: {
+		status: string;
+		message: string;
+	};
 }
 
-export interface GhlCustomField {
-  id?: string;
-  key?: string;
-  field_value?: string;
-  value?: string;
+interface GhlCustomField {
+	id?: string;
+	key?: string;
+	field_value?: string;
+	value?: string;
 }
 
-export interface GhlAttributionSource {
-  url?: string;
-  campaign?: string;
-  utmSource?: string;
-  utmMedium?: string;
-  utmTerm?: string;
-  utmContent?: string;
-  referrer?: string;
-  campaignId?: string;
-  fbclid?: string;
-  gclid?: string;
-  msclkid?: string;
-  dclid?: string;
-  fbc?: string;
-  fbp?: string;
-  fireflyId?: string;
-  userAgent?: string;
-  ip?: string;
-  medium?: string;
-  mediumId?: string;
+interface GhlAttributionSource {
+	url?: string;
+	campaign?: string;
+	utmSource?: string;
+	utmMedium?: string;
+	utmContent?: string;
+	referrer?: string;
+	campaignId?: string;
+	fbclid?: string;
+	gclid?: string;
+	msclikid?: string;
+	dclid?: string;
+	fbc?: string;
+	fbp?: string;
+	fbEventId?: string;
+	userAgent?: string;
+	ip?: string;
+	medium?: string;
+	mediumId?: string;
 }
 
 export interface GhlContactUpsertRequest {
-  idInstance?: string;
-  name?: string | null;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  phone2?: string;
-  address1?: string | null;
-  address2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  postalCode?: string;
-  website?: string;
-  timezone?: string;
-  dnd?: boolean;
-  dndSettings?: GhlChannelSettings;
-  inboundSettings?: GhlInboundSettings;
-  tags?: string[];
-  customFields?: GhlCustomField[];
-  source?: string;
-  country?: string;
-  companyName?: string | null;
-  assignedTo?: string;
-  contact?: any;
+        firstName?: string | null;
+        lastName?: string | null;
+        name?: string | null;
+        email?: string | null;
+        locationId: string;
+	gender?: string;
+	phone?: string | null;
+	address1?: string | null;
+	city?: string | null;
+	state?: string | null;
+	postalCode?: string;
+	website?: string | null;
+	timezone?: string | null;
+	dnd?: boolean;
+	dndSettings?: GhlDndSettings;
+	inboundDndSettings?: GhlInboundDndSettings;
+	tags?: string[];
+	customFields?: GhlCustomField[];
+	source?: string;
+        country?: string;
+        companyName?: string | null;
+        assignedTo?: string;
+        contact?: any;
 }
 
 export interface GhlContact {
-  id: string;
-  name: string;
-  locationId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  emailLowerCase: string;
-  timezone: string;
-  company: string;
-  phone: string;
-  dnd: boolean;
-  dndSettings: GhlChannelSettings;
-  type: string;
-  source: string;
-  address1: string;
-  address2: string;
-  city: string;
-  state: string;
-  country: string;
-  postalCode: string;
-  website: string;
-  tags: string[];
-  dateOfBirth: string;
-  dateUpdated: string;
-  attachments: string;
-  ssn: string;
-  keyword: string;
-  firstNameLowerCase: string;
-  fullNameLowerCase: string;
-  lastNameLowerCase: string;
-  userFields: GhlCustomField[];
-  businessId: string;
-  attributionSource: GhlAttributionSource;
-  lastAttributionSource: GhlAttributionSource;
-  visitorId: string;
+	id: string;
+	name: string;
+	locationId: string;
+	firstName: string;
+	lastName: string;
+	email: string;
+	emailLowerCase: string;
+	timezone: string;
+	companyName: string;
+	phone: string;
+	dnd: boolean;
+	dndSettings: GhlDndSettings;
+	type: string;
+	source: string;
+	assignedTo: string;
+	address1: string;
+	city: string;
+	state: string;
+	country: string;
+	postalCode: string;
+	website: string;
+	tags: string[];
+	dateOfBirth: string;
+	dateAdded: string;
+	dateUpdated: string;
+	attachments: string;
+	ssn: string;
+	keyword: string;
+	firstNameLowerCase: string;
+	fullNameLowerCase: string;
+	lastNameLowerCase: string;
+	lastActivity: string;
+	customFields: GhlCustomField[];
+	businessId: string;
+	attributionSource: GhlAttributionSource;
+	lastAttributionSource: GhlAttributionSource;
+	visitorId: string;
 }
 
 export interface GhlContactUpsertResponse {
-  move: boolean;
-  contact: GhlContact;
-  traceId: string;
+	new: boolean;
+	contact: GhlContact;
+	traceId: string;
 }
+
 
