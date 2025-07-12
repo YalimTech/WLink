@@ -17,7 +17,7 @@ model User {
   accessToken    String    @db.Text
   refreshToken   String    @db.Text
   tokenExpiresAt DateTime?
-  instance       Instance?
+  instances      Instance[]
   createdAt      DateTime  @default(now())
 }
 
