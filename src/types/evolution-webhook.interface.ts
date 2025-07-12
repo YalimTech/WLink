@@ -2,6 +2,13 @@ export interface EvolutionWebhook {
   type: "message" | "incomingCall" | string;
   timestamp: number;
   from?: string;
+  instanceId?: string | number;
+  messageData?: {
+    idMessage: string;
+    typeMessage: string;
+    senderData: { chatId: string };
+    textMessageData?: { textMessage: string };
+  };
   call?: {
     status: "offer" | "answered" | "rejected" | "missed" | string;
   };
