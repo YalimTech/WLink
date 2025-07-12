@@ -1,4 +1,31 @@
-import { User } from ".prisma/client";
+// Local interfaces mirror the database schema for Prisma models.
+
+export enum InstanceState {
+  notAuthorized = "notAuthorized",
+  authorized = "authorized",
+  yellowCard = "yellowCard",
+  blocked = "blocked",
+  starting = "starting",
+}
+
+export interface User {
+  id: string;
+  companyId?: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  tokenExpiresAt?: Date | null;
+  createdAt: Date;
+}
+
+export interface Instance {
+  id: bigint;
+  idInstance: bigint;
+  apiTokenInstance: string;
+  stateInstance?: InstanceState | null;
+  userId: string;
+  settings?: Record<string, any> | null;
+  createdAt: Date;
+}
 
 interface GhlPlatformAttachment {
 	url: string;
@@ -30,16 +57,22 @@ export interface GhlUserData {
 }
 
 export interface GhlPlatformMessage {
-	contactId: string;
-	locationId: string;
-	message: string;
-	direction: "inbound";
-	conversationProviderId?: string;
-	attachments?: GhlPlatformAttachment[];
-	timestamp?: Date;
+        contactId: string;
+        locationId: string;
+        message: string;
+        direction: "inbound";
+        conversationProviderId?: string;
+        attachments?: GhlPlatformAttachment[];
+        timestamp?: Date;
 }
 
-export type UserCreateData = Omit<User, "createdAt" | "instance"> & { id: string };
+export interface SendResponse {
+        id?: string;
+        status?: string;
+        [key: string]: any;
+}
+
+export type UserCreateData = Omit<User, "createdAt"> & { id: string };
 export type UserUpdateData = Partial<Omit<UserCreateData, "id">>;
 
 interface GhlDndChannelSettings {
