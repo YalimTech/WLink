@@ -74,11 +74,11 @@ Para obtener una licencia comercial o consultar sobre colaboración, escríbenos
 
 ## 🚀 Construcción del contenedor
 
-Para instalar las dependencias privadas durante el build se utiliza un fichero `.npmrc` que requiere un token de autenticación.
+Para instalar las dependencias privadas durante el build se utiliza un fichero `.npmrc` que requiere un token de autenticación. Es recomendable usar [Docker BuildKit](https://docs.docker.com/build/) para pasar el token como un *secret* y evitar que quede almacenado en la imagen.
 
-1. Defina la variable `NPM_TOKEN` con un token válido para el registro `npm.pkg.github.com`.
-2. Al construir la imagen con Docker o `docker-compose` se pasará este token como argumento de construcción.
+1. Cree un token personal con permiso `read:packages` y defina la variable de entorno `NPM_TOKEN`.
+2. Ejecute la construcción indicando el secreto:
 
 ```bash
-NPM_TOKEN=xxxxxxxx docker compose build
+NPM_TOKEN=xxxxxxxx docker compose build --secret id=npm_token,env=NPM_TOKEN
 ```

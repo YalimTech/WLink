@@ -1,14 +1,15 @@
+# syntax=docker/dockerfile:1.4
 FROM node:20-alpine
 
 WORKDIR /app
 
-ARG NPM_TOKEN
-COPY .npmrc .npmrc
-
 COPY package.json ./
 COPY package-lock.json ./
+COPY .npmrc .npmrc
 
-RUN npm install && rm -f .npmrc
+RUN --mount=type=secret,id=npm_token \
+    NPM_TOKEN=$(cat /run/secrets/npm_token) && \
+    npm install && rm -f .npmrc
 
 COPY . .
 
