@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, NotFoundException } from "@nestjs/common";
+import { Injectable, OnModuleInit, NotFoundException, Logger } from "@nestjs/common";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { StorageProvider, Settings } from "../evolutionapi";
 import {
@@ -23,8 +23,28 @@ export class PrismaService
       UserCreateData,
       UserUpdateData
     > {
+  private readonly logger = new Logger(PrismaService.name);
+
   async onModuleInit() {
-    await this.$connect();
+    const retries = parseInt(process.env.DB_CONNECT_RETRIES || '5', 10);
+    const delayMs = parseInt(process.env.DB_CONNECT_DELAY_MS || '2000', 10);
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await this.$connect();
+        this.logger.log('Connected to database');
+        return;
+      } catch (err) {
+        if (attempt === retries) {
+          this.logger.error('Unable to connect to database', err as Error);
+          throw err;
+        }
+        this.logger.warn(
+          `Database connection attempt ${attempt} failed. Retrying in ${delayMs}ms...`,
+        );
+        await new Promise((res) => setTimeout(res, delayMs));
+      }
+    }
   }
 
   async createUser(data: UserCreateData): Promise<User> {
