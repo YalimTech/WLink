@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
 import { GhlPlatformMessage } from "../types";
-import { MessageTransformer, Message } from "../types/message.interface";
+import { MessageTransformer, EvolutionApiMessage } from "../types/message.interface";
 import { EvolutionWebhook } from "../types/evolution-webhook.interface";
-import { extractPhoneNumberFromVCard } from "../utils/format";
+import { extractPhoneNumberFromVCard } from "../../utils/format";
 
 @Injectable()
 export class GhlTransformer implements MessageTransformer<GhlWebhookDto, GhlPlatformMessage> {
@@ -135,7 +135,7 @@ export class GhlTransformer implements MessageTransformer<GhlWebhookDto, GhlPlat
   }
 
 
-  toEvolutionApiMessage(ghlWebhook: GhlWebhookDto): Message {
+  toEvolutionApiMessage(ghlWebhook: GhlWebhookDto): EvolutionApiMessage {
     this.logger.debug(`Transforming GHL Webhook to Evolution API Message: ${JSON.stringify(ghlWebhook)}`);
 
     if (ghlWebhook.type === "SMS" && ghlWebhook.phone) {

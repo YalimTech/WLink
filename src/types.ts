@@ -30,13 +30,19 @@ export interface GhlUserData {
 }
 
 export interface GhlPlatformMessage {
-	contactId: string;
-	locationId: string;
-	message: string;
-	direction: "inbound";
-	conversationProviderId?: string;
-	attachments?: GhlPlatformAttachment[];
-	timestamp?: Date;
+        contactId: string;
+        locationId: string;
+        message: string;
+        direction: "inbound";
+        conversationProviderId?: string;
+        attachments?: GhlPlatformAttachment[];
+        timestamp?: Date;
+}
+
+export interface SendResponse {
+        id?: string;
+        status?: string;
+        [key: string]: any;
 }
 
 export type UserCreateData = Omit<User, "createdAt" | "instance"> & { id: string };
