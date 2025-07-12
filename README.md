@@ -68,3 +68,17 @@ Para obtener una licencia comercial o consultar sobre colaboración, escríbenos
   ├── webhooks/         # Recepción de eventos de GHL y Evolution
   ├── types.ts          # Tipos y estructuras compartidas
   ├── main.ts           # Bootstrap principal
+```
+
+---
+
+## 🚀 Construcción del contenedor
+
+Para instalar las dependencias privadas durante el build se utiliza un fichero `.npmrc` que requiere un token de autenticación.
+
+1. Defina la variable `NPM_TOKEN` con un token válido para el registro `npm.pkg.github.com`.
+2. Al construir la imagen con Docker o `docker-compose` se pasará este token como argumento de construcción.
+
+```bash
+NPM_TOKEN=xxxxxxxx docker compose build
+```

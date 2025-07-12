@@ -2,10 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+ARG NPM_TOKEN
+COPY .npmrc .npmrc
+
 COPY package.json ./
 COPY package-lock.json ./
 
-RUN npm install
+RUN npm install && rm -f .npmrc
 
 COPY . .
 
