@@ -150,9 +150,27 @@ export class GhlTransformer implements MessageTransformer<GhlPlatformMessage, Ev
 
   toEvolutionApiMessage(ghlMessage: GhlPlatformMessage): EvolutionApiMessage {
     this.logger.debug(`Transforming GHL Webhook to Evolution API Message: ${JSON.stringify(ghlMessage)}`);
+    
+if (ghlMessage.direction === "inbound" && ghlMessage.locationId) {
+  const isGroup = ghlMessage.contactId.length > 16;
+  const chatId = isGroup
+    ? `${ghlMessage.contactId}@g.us`
+    : `${ghlMessage.contactId}@c.us`;
 
-    if (ghlMessage.direction === "inbound" && ghlMessage.locationId) {
-      const isGroup = (ghlMessage.contactId || "").length > 16;
+  if (ghlMessage.attachments?.length) {
+    const fileUrl = ghlMessage.attachments[0].url || (ghlMessage.attachments[0] as any);
+    return {
+      type: "url-file",
+      chatId,
+      file: {
+        url: fileUrl,
+        filename: `St_${Date.now()}file`,
+      },
+      caption: ghlMessage.message || "",
+    };
+  }
+}
+
       const chatId = isGroup
         ? `${ghlMessage.contactId}@g.us`
         : `${ghlMessage.contactId}@c.us`;
