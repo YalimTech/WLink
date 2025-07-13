@@ -3,13 +3,21 @@ import {
   IsNotEmpty,
   Matches,
   IsOptional,
+  IsArray,
+  ValidateIf,
+  ArrayNotEmpty,
 } from 'class-validator';
 
 export class GhlExternalAuthPayloadDto {
-  @IsString()
-  @IsNotEmpty()
-  locationId: string;
+  // locationId puede venir como string o array
+  @ValidateIf((_, value) => value !== undefined)
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  locationId?: string[];  // Se procesará como array, y luego tú tomas el primero manualmente
 
+  @ValidateIf((_, value) => value !== undefined)
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-Z0-9\-]+$/, {
@@ -17,6 +25,7 @@ export class GhlExternalAuthPayloadDto {
   })
   instance_id?: string;
 
+  @ValidateIf((_, value) => value !== undefined)
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-Z0-9\-]+$/, {
