@@ -143,8 +143,7 @@ export class GhlOauthController {
   ) {
     const instanceId = queryInstanceId || body?.instance_id;
     const apiToken = queryApiToken || body?.api_token_instance;
-    const locationId =
-      queryLocationId || body?.location?.id || body?.locationId?.[0];
+    const locationId = queryLocationId || body?.locationId?.[0];
 
     this.logger.log(
       `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
@@ -194,8 +193,7 @@ export class GhlOauthController {
   ) {
     const instanceId = payload.instance_id;
     const apiToken = payload.api_token_instance;
-    const locationId =
-      payload?.location?.id || payload?.locationId?.[0] || payload?.locationId;
+    const locationId = payload?.locationId?.[0] || (payload as any).locationId;
 
     this.logger.log(
       `Received external auth via body - instanceId: ${instanceId}, locationId: ${locationId}`,
