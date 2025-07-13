@@ -139,22 +139,22 @@ export class GhlOauthController {
   async externalAuthCredentials(
     @Query('instance_id') queryInstanceId: string,
     @Query('api_token_instance') queryApiToken: string,
-    @Query('locationId') queryLocationId: string,
+    @Query('locationId') queryLocationId: string | string[],
     @Body() body: GhlExternalAuthPayloadDto,
   ) {
-    const instanceId =
-      queryInstanceId || body?.instance_id || body?.instanceId;
-    const apiToken =
-      queryApiToken || body?.api_token_instance || body?.apiTokenInstance;
     const locationId =
-      queryLocationId || body?.locationId?.[0] || body?.locationId;
+      (Array.isArray(queryLocationId) ? queryLocationId[0] : queryLocationId) ||
+      (Array.isArray(body?.locationId) ? body.locationId[0] : body?.locationId);
+
+    const instanceId = queryInstanceId || body?.instance_id;
+    const apiToken = queryApiToken || body?.api_token_instance;
 
     this.logger.log(
       `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
     );
 
-    if (!locationId) {
-      throw new HttpException('Missing locationId', HttpStatus.BAD_REQUEST);
+    if (!locationId || !instanceId || !apiToken) {
+      throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: locationId } });
@@ -163,10 +163,6 @@ export class GhlOauthController {
         'OAuth must be completed before submitting instance credentials.',
         HttpStatus.BAD_REQUEST,
       );
-    }
-
-    if (!instanceId || !apiToken) {
-      throw new HttpException('Missing instance credentials', HttpStatus.BAD_REQUEST);
     }
 
     try {
@@ -197,14 +193,16 @@ export class GhlOauthController {
   ) {
     const instanceId = payload.instance_id;
     const apiToken = payload.api_token_instance;
-    const locationId = payload.locationId?.[0] ?? (payload as any).locationId;
+    const locationId = Array.isArray(payload.locationId)
+      ? payload.locationId[0]
+      : payload.locationId;
 
     this.logger.log(
       `Received external auth via body - instanceId: ${instanceId}, locationId: ${locationId}`,
     );
 
-    if (!locationId) {
-      throw new HttpException('Missing locationId in body', HttpStatus.BAD_REQUEST);
+    if (!locationId || !instanceId || !apiToken) {
+      throw new HttpException('Missing required fields in body', HttpStatus.BAD_REQUEST);
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: locationId } });
@@ -213,10 +211,6 @@ export class GhlOauthController {
         'OAuth must be completed before submitting instance credentials.',
         HttpStatus.BAD_REQUEST,
       );
-    }
-
-    if (!instanceId || !apiToken) {
-      throw new HttpException('Missing instance credentials', HttpStatus.BAD_REQUEST);
     }
 
     try {
@@ -240,4 +234,5 @@ export class GhlOauthController {
     }
   }
 }
+
 
