@@ -133,6 +133,7 @@ export class GhlOauthController {
       );
     }
   }
+
   @Post('external-auth-credentials')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async externalAuthCredentials(
@@ -141,9 +142,12 @@ export class GhlOauthController {
     @Query('locationId') queryLocationId: string,
     @Body() body: GhlExternalAuthPayloadDto,
   ) {
-    const instanceId = queryInstanceId || body?.instance_id;
-    const apiToken = queryApiToken || body?.api_token_instance;
-    const locationId = queryLocationId || body?.locationId?.[0];
+    const instanceId =
+      queryInstanceId || body?.instance_id || body?.instanceId;
+    const apiToken =
+      queryApiToken || body?.api_token_instance || body?.apiTokenInstance;
+    const locationId =
+      queryLocationId || body?.locationId?.[0] || body?.locationId;
 
     this.logger.log(
       `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
@@ -193,7 +197,6 @@ export class GhlOauthController {
   ) {
     const instanceId = payload.instance_id;
     const apiToken = payload.api_token_instance;
-    // locationId can be provided either as an array or a single string
     const locationId = payload.locationId?.[0] ?? (payload as any).locationId;
 
     this.logger.log(
@@ -237,3 +240,4 @@ export class GhlOauthController {
     }
   }
 }
+
