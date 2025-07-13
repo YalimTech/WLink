@@ -95,3 +95,8 @@ dependencias públicas.
 
 ### Generar Prisma Client sin conexión
 Si el entorno bloquea la descarga de binarios de Prisma, defina `PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1` antes de ejecutar `npx prisma generate` para omitir la verificación de suma.
+
+### Configuración del entorno
+Copie el archivo `.env.example` a `.env` y ajuste la variable `DATABASE_URL` con la cadena de conexión de PostgreSQL.
+Si utiliza `docker-compose`, no agregue comillas alrededor de la URL para evitar que se pasen al contenedor.
+La URL debe comenzar con `postgresql://` o `postgres://` según la [documentación oficial de Prisma](https://www.prisma.io/docs/orm/prisma-schema#datasource). También configure `EVOLUTION_API_URL` con la ruta base de Evolution API v2 y ajuste el resto de variables de acuerdo con su cuenta de GoHighLevel y Evolution API.
