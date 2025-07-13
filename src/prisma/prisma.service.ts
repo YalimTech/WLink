@@ -3,27 +3,25 @@ import {
   OnModuleInit,
   NotFoundException,
   Logger,
-} from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
-import { StorageProvider, Settings } from "../evolutionapi";
+} from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { StorageProvider, Settings } from '../evolutionapi';
 import {
   InstanceState,
   User,
   Instance,
   UserCreateData,
   UserUpdateData,
-} from "../types";
+} from '../types';
 
 function parseBigInt(id: number | string | bigint): bigint {
-  return typeof id === "bigint" ? id : BigInt(id);
+  return typeof id === 'bigint' ? id : BigInt(id);
 }
 
 @Injectable()
 export class PrismaService
   extends PrismaClient
-  implements
-    OnModuleInit,
-    StorageProvider<User, Instance, UserCreateData, UserUpdateData>
+  implements OnModuleInit, StorageProvider<User, Instance, UserCreateData, UserUpdateData>
 {
   private readonly logger = new Logger(PrismaService.name);
 
@@ -39,7 +37,7 @@ export class PrismaService
     // Validate protocol
     if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
       throw new Error(
-        'Invalid DATABASE_URL. Must start with "postgresql://" or "postgres://"'
+        'Invalid DATABASE_URL. Must start with "postgresql://" or "postgres://"',
       );
     }
 
@@ -253,3 +251,4 @@ export class PrismaService
   }
 
 }
+
