@@ -38,7 +38,10 @@ export class AuthController {
     }
 
     try {
-      const status = await this.authService.validateInstance(instanceId, instanceToken);
+      const status = await this.authService.validateInstance(
+        instanceId,
+        instanceToken,
+      );
       return res.status(HttpStatus.OK).json({
         success: true,
         instanceId,
