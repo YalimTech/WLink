@@ -8,14 +8,17 @@ export class AuthService {
   async validateInstance(instanceId: string, token: string): Promise<any> {
     try {
       const status = await this.evolution.getInstanceStatus(token);
+
       // If API provides instance identifier, ensure it matches
-      const returnedId = status?.idInstance || status?.instanceId || status?.instance_id;
+      const returnedId =
+        status?.idInstance || status?.instanceId || status?.instance_id;
       if (returnedId && returnedId.toString() !== instanceId.toString()) {
         throw new UnauthorizedException('Instance ID mismatch');
       }
+
       return status;
     } catch (error: any) {
-      // Handle Axios errors (network issues or non‑2xx responses)
+      // Handle Axios errors (network issues or non-2xx responses)
       if (error?.isAxiosError) {
         if (error.response) {
           const statusCode = error.response.status;
