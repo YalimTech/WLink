@@ -140,7 +140,6 @@ export class GhlService extends BaseAdapter<
     return httpClient;
   }
 
-
   private async refreshGhlAccessToken(refreshToken: string): Promise<{
     access_token: string;
     refresh_token: string;
@@ -272,7 +271,6 @@ export class GhlService extends BaseAdapter<
     return sorted[0];
   }
 
-
   async handlePlatformWebhook(ghlWebhook: GhlWebhookDto, instanceId: bigint): Promise<void> {
     try {
       const message: GhlPlatformMessage = {
@@ -348,7 +346,6 @@ export class GhlService extends BaseAdapter<
       this.logger.error(`Failed to update state of instance ${instanceId}: ${error.message}`);
     }
   }
-
 
   async createEvolutionApiInstanceForUser(
     userId: string,
