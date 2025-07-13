@@ -1,5 +1,4 @@
-WLink Adapter
-WLink Adapter es el microservicio principal que gestiona la integración entre WhatsApp (a través de Evolution API) y GoHighLevel, funcionando como el backend de una plataforma SaaS que permite a los usuarios conectar y administrar sus propias instancias de WhatsApp dentro de GoHighLevel.
+# WLink Adapter
 
 ⚠️ Este repositorio es privado y su contenido es propietario. No está disponible para uso público ni distribución.
 
@@ -63,3 +62,8 @@ Si no cuenta con acceso a los paquetes privados, puede omitir la variable NPM_TO
 
 Generar Prisma Client sin conexión
 Si el entorno bloquea la descarga de binarios de Prisma, defina PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1 antes de ejecutar npx prisma generate para omitir la verificación de suma.
+
+### Configuración del entorno
+Copie el archivo `.env.example` a `.env` y defina la variable `DATABASE_URL` con su cadena de conexión de PostgreSQL.
+Si usa `docker-compose`, evite poner comillas alrededor de la URL para que la variable se expanda correctamente.
+La URL debe comenzar con `postgresql://` o `postgres://` conforme a la [documentación de Prisma](https://www.prisma.io/docs/orm/prisma-schema#datasource). Además configure `EVOLUTION_API_URL` con la ruta base de Evolution API v2 y ajuste las demás variables siguiendo sus credenciales de GoHighLevel y Evolution API.
