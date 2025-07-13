@@ -103,7 +103,7 @@ export class WebhooksController {
       res.status(HttpStatus.OK).send();
 
       if (ghlWebhook.type === "SMS" && (ghlWebhook.message || (ghlWebhook.attachments?.length > 0))) {
-        await this.ghlService.handlePlatformWebhook(ghlWebhook, BigInt(instanceId));
+        await this.ghlService.handlePlatformWebhook(ghlWebhook, instanceId as string);
       }
 
     } catch (error) {
