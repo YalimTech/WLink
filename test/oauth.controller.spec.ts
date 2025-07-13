@@ -32,39 +32,39 @@ describe('GhlOauthController', () => {
 
   it('accepts locationId from query parameters', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'loc' });
-    const result = await controller.externalAuthCredentials('id1', 'tok1', 'loc', {});
+    const result = await controller.externalAuthCredentials('id1', 'tok1', 'loc', {} as any);
     expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'loc' } });
     expect(authService.validateInstance).toHaveBeenCalledWith('id1', 'tok1');
     expect(ghlService.createEvolutionApiInstanceForUser).toHaveBeenCalledWith('loc', 'id1', 'tok1');
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ message: 'Valid credentials' });
   });
 
   it('accepts locationId from body array', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'loc2' });
-    const result = await controller.externalAuthCredentials('i', 't', undefined as any, { locationId: ['loc2'] });
+    const result = await controller.externalAuthCredentials('i', 't', undefined as any, { locationId: ['loc2'] } as any);
     expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { id: 'loc2' } });
     expect(authService.validateInstance).toHaveBeenCalledWith('i', 't');
     expect(ghlService.createEvolutionApiInstanceForUser).toHaveBeenCalledWith('loc2', 'i', 't');
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ message: 'Valid credentials' });
   });
 
   it('throws when locationId missing', async () => {
     await expect(
-      controller.externalAuthCredentials('i', 't', undefined as any, {})
+      controller.externalAuthCredentials('i', 't', undefined as any, {} as any)
     ).rejects.toThrow(HttpException);
   });
 
   it('throws when locationId invalid', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
     await expect(
-      controller.externalAuthCredentials('i', 't', 'bad', {})
+      controller.externalAuthCredentials('i', 't', 'bad', {} as any)
     ).rejects.toThrow(HttpException);
   });
 
   it('throws when credentials missing', async () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'loc' });
     await expect(
-      controller.externalAuthCredentials(undefined as any, undefined as any, 'loc', {})
+      controller.externalAuthCredentials(undefined as any, undefined as any, 'loc', {} as any)
     ).rejects.toThrow(HttpException);
   });
 });

@@ -28,7 +28,7 @@ export class GhlService extends BaseAdapter<
   User,
   Instance
 > {
-  private readonly logger = new Logger(GhlService.name);
+  // BaseAdapter already defines a protected logger. Reuse it for consistency.
   private readonly ghlApiBaseUrl = "https://services.leadconnectorhq.com";
   private readonly ghlApiVersion = "2021-07-28";
 
@@ -359,7 +359,8 @@ export class GhlService extends BaseAdapter<
 
     if (existing) {
       this.logger.warn(`Instance ${instanceId} already exists. Skipping creation.`);
-      return existing;
+      // Cast to the shared Instance interface for compatibility with callers
+      return existing as unknown as Instance;
     }
 
     try {
@@ -402,7 +403,9 @@ export class GhlService extends BaseAdapter<
       `New Evolution API instance created for user ${userId}: ${instanceId}`,
     );
 
-    return newInstance;
+    // Prisma types use their own enum definition for `InstanceState`. Cast to
+    // the local Instance interface to satisfy the compiler.
+    return newInstance as unknown as Instance;
   }
 
   async handleStateWebhook(
