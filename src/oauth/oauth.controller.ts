@@ -134,57 +134,56 @@ export class GhlOauthController {
     }
   }
 
-  @Post('external-auth-credentials')
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async externalAuthCredentials(
-    @Query('instance_id') queryInstanceId: string,
-    @Query('api_token_instance') queryApiToken: string,
-    @Query('locationId') queryLocationId: string | string[],
-    @Body() body: GhlExternalAuthPayloadDto,
-  ) {
-    const locationId =
-      (Array.isArray(queryLocationId) ? queryLocationId[0] : queryLocationId) ||
-      (Array.isArray(body?.locationId) ? body.locationId[0] : body?.locationId);
+ @Post('external-auth-credentials')
+@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+async externalAuthCredentials(
+  @Query('instance_id') queryInstanceId: string,
+  @Query('api_token_instance') queryApiToken: string,
+  @Query('locationId') queryLocationId: string | string[],
+  @Body() body: GhlExternalAuthPayloadDto,
+) {
+  // Prioridad: primero URL, luego body
+  const instanceId = queryInstanceId || body?.instance_id;
+  const apiToken = queryApiToken || body?.api_token_instance;
+  const locationId =
+    (Array.isArray(queryLocationId) ? queryLocationId[0] : queryLocationId) ||
+    (Array.isArray(body?.locationId) ? body.locationId[0] : body?.locationId);
 
-    const instanceId = queryInstanceId || body?.instance_id;
-    const apiToken = queryApiToken || body?.api_token_instance;
+  this.logger.log(
+    `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
+  );
 
-    this.logger.log(
-      `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
+  if (!locationId || !instanceId || !apiToken) {
+    throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
+  }
+
+  const user = await this.prisma.user.findUnique({ where: { id: locationId } });
+  if (!user) {
+    throw new HttpException(
+      'OAuth must be completed before submitting instance credentials.',
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  try {
+    await this.authService.validateInstance(instanceId, apiToken);
+    await this.ghlService.createEvolutionApiInstanceForUser(
+      locationId,
+      instanceId,
+      apiToken,
     );
 
-    if (!locationId || !instanceId || !apiToken) {
-      throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
-    }
+    this.logger.log(
+      `Validated and stored instance ${instanceId} for location ${locationId}`,
+    );
 
-    const user = await this.prisma.user.findUnique({ where: { id: locationId } });
-    if (!user) {
-      throw new HttpException(
-        'OAuth must be completed before submitting instance credentials.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    try {
-      await this.authService.validateInstance(instanceId, apiToken);
-      await this.ghlService.createEvolutionApiInstanceForUser(
-        locationId,
-        instanceId,
-        apiToken,
-      );
-
-      this.logger.log(
-        `Validated and stored instance ${instanceId} for location ${locationId}`,
-      );
-
-      return {
-        message: 'Valid credentials',
-      };
-    } catch (err) {
-      this.logger.error(`Credential validation failed: ${err.message}`);
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
-    }
+    return { message: 'Valid credentials' };
+  } catch (err) {
+    this.logger.error(`Credential validation failed: ${err.message}`);
+    throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
   }
+}
+
 
   @Post('external-auth-body')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
