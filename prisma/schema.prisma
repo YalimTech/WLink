@@ -12,7 +12,7 @@ datasource db {
 }
 
 model User {
-  id             String     @id
+  id             String     @id @default(uuid()) @db.Uuid
   companyId      String?
   accessToken    String     @db.Text
   refreshToken   String     @db.Text
@@ -30,17 +30,18 @@ enum InstanceState {
 }
 
 model Instance {
-  id             BigInt       @id @default(autoincrement())
-  idInstance     String       @unique @db.Uuid
-  name           String?
-  phoneNumber    String?
-  apiTokenInstance String
-  stateInstance  InstanceState?
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  settings       Json?        @default("{}") @db.Json
-  createdAt      DateTime     @default(now())
+  id               String       @id @default(uuid()) @db.Uuid // UUID generado automáticamente
+  idInstance       String       @unique @db.Text              // Permite UUID como string
+  name             String?
+  phoneNumber      String?
+  apiTokenInstance String       @db.Text                      // Token largo, con o sin guiones
+  stateInstance    InstanceState?
+  userId           String
+  user             User         @relation(fields: [userId], references: [id])
+  settings         Json?        @default("{}") @db.Json
+  createdAt        DateTime     @default(now())
 }
+
 
 
 
