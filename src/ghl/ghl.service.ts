@@ -335,7 +335,7 @@ export class GhlService extends BaseAdapter<
   }
 
 
-  async createEvolutionInstanceForUser(
+  async createEvolutionApiInstanceForUser(
     userId: string,
     instanceId: string | number | bigint,
     apiToken: string,
@@ -365,7 +365,9 @@ export class GhlService extends BaseAdapter<
       },
     });
 
-    this.logger.log(`New Evolution API instance created for user ${userId}: ${instanceId}`);
+    this.logger.log(
+      `New Evolution API instance created for user ${userId}: ${instanceId}`,
+    );
     return newInstance as unknown as Instance;
   }
 
