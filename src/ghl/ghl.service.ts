@@ -6,6 +6,7 @@ import { firstValueFrom } from "rxjs";
 import { BaseAdapter, NotFoundError, IntegrationError } from "../core/base-adapter";
 import { GhlTransformer } from "./ghl.transformer";
 import { PrismaService } from "../prisma/prisma.service";
+import { EvolutionService } from "../evolution/evolution.service";
 import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
 import { randomBytes } from "crypto";
 import {
@@ -35,6 +36,7 @@ export class GhlService extends BaseAdapter<
     protected readonly ghlTransformer: GhlTransformer,
     protected readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly evolutionService: EvolutionService,
   ) {
     super(ghlTransformer, prisma);
   }
@@ -137,7 +139,6 @@ export class GhlService extends BaseAdapter<
 
     return httpClient;
   }
-
 
   private async refreshGhlAccessToken(refreshToken: string): Promise<{
     access_token: string;
@@ -270,7 +271,6 @@ export class GhlService extends BaseAdapter<
     return sorted[0];
   }
 
-
   async handlePlatformWebhook(ghlWebhook: GhlWebhookDto, instanceId: bigint): Promise<void> {
     try {
       const message: GhlPlatformMessage = {
@@ -283,7 +283,20 @@ export class GhlService extends BaseAdapter<
         messageId: ghlWebhook.messageId,
       };
 
-      await this.evolution.sendMessage(instanceId.toString(), message);
+      const inst = await this.prisma.instance.findUnique({
+        where: { idInstance: instanceId },
+      });
+      if (!inst) {
+        throw new NotFoundError(`Instance ${instanceId} not found`);
+      }
+      if (!message.phone) {
+        throw new IntegrationError('Missing phone number to send message');
+      }
+      await this.evolutionService.sendMessage(
+        inst.apiTokenInstance,
+        message.phone,
+        message.message,
+      );
     } catch (error) {
       this.logger.error(`Failed to handle outbound message webhook: ${error.message}`, error);
       throw new Error("Failed to forward outbound message to Evolution API");
@@ -334,7 +347,6 @@ export class GhlService extends BaseAdapter<
     }
   }
 
-
   async createEvolutionApiInstanceForUser(
     userId: string,
     instanceId: string | number | bigint,
@@ -352,6 +364,20 @@ export class GhlService extends BaseAdapter<
       return existing as unknown as Instance;
     }
 
+    // validate credentials and fetch settings
+    try {
+      const status = await this.evolutionService.getInstanceStatus(apiToken);
+      const returnedId =
+        status?.idInstance || status?.instanceId || status?.instance_id;
+      if (returnedId && BigInt(returnedId) !== idInst) {
+        throw new IntegrationError('Instance ID mismatch');
+      }
+      wid = wid || status?.wid || status?.widNumber;
+    } catch (err) {
+      this.logger.error(`Evolution API credentials invalid: ${err.message}`);
+      throw new HttpException('Invalid Evolution API credentials', HttpStatus.BAD_REQUEST);
+    }
+
     const newInstance = await this.prisma.instance.create({
       data: {
         idInstance: idInst,
@@ -364,6 +390,14 @@ export class GhlService extends BaseAdapter<
         },
       },
     });
+
+    const webhookUrl = `${this.configService.get<string>('APP_URL')}/webhooks/evolution`;
+    try {
+      await this.evolutionService.configureWebhooks(apiToken, webhookUrl);
+      this.logger.log('Evolution API webhooks configured');
+    } catch (err) {
+      this.logger.error('Failed to configure Evolution API webhooks', err);
+    }
 
     this.logger.log(
       `New Evolution API instance created for user ${userId}: ${instanceId}`,
