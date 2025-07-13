@@ -119,14 +119,14 @@ export class GhlController {
 
 	@Delete(":instanceId")
 	async deleteInstance(@Param("instanceId") instanceId: string, @Req() req: AuthReq) {
-		const instance = await this.prisma.getInstance(BigInt(instanceId));
+        const instance = await this.prisma.getInstance(instanceId);
 		if (!instance || (instance.userId !== req.locationId)) {
 			throw new HttpException("Unauthorized", HttpStatus.FORBIDDEN);
 		}
 		this.logger.log(`Deleting instance: ${instanceId}`);
 
 		try {
-			await this.prisma.removeInstance(BigInt(instanceId));
+                    await this.prisma.removeInstance(instanceId);
 
 			return {
 				success: true,
@@ -152,12 +152,12 @@ export class GhlController {
 	) {
 		this.logger.log(`Updating instance: ${instanceId}`);
 		try {
-			let instance = await this.prisma.getInstance(BigInt(instanceId));
+                        let instance = await this.prisma.getInstance(instanceId);
 			if (!instance) {
 				throw new HttpException("Instance not found", HttpStatus.NOT_FOUND);
 			}
 			if (dto.name) {
-				instance = await this.prisma.updateInstanceName(BigInt(instanceId), dto.name);
+                                instance = await this.prisma.updateInstanceName(instanceId, dto.name);
 			}
 
 			return {
