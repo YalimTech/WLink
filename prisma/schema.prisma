@@ -12,13 +12,13 @@ datasource db {
 }
 
 model User {
-  id             String    @id
+  id             String     @id
   companyId      String?
-  accessToken    String    @db.Text
-  refreshToken   String    @db.Text
+  accessToken    String     @db.Text
+  refreshToken   String     @db.Text
   tokenExpiresAt DateTime?
   instances      Instance[]
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime   @default(now())
 }
 
 enum InstanceState {
@@ -30,15 +30,15 @@ enum InstanceState {
 }
 
 model Instance {
-  id               BigInt         @id @default(autoincrement())
-  idInstance       BigInt         @unique
+  id               String         @id @default(uuid()) // Identificador interno opcional
+  idInstance       String         @unique              // UUID o string personalizado del cliente (Evolution API)
   name             String?
   phoneNumber      String?
-  apiTokenInstance String
+  apiTokenInstance String         // Token alfanumérico con posibles guiones
   stateInstance    InstanceState?
   userId           String
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// [InstanceSettings]
   settings         Json?          @default("{}") @db.Json
   createdAt        DateTime       @default(now())
 }
+
