@@ -282,7 +282,7 @@ export class GhlService extends BaseAdapter<
       };
 
       const inst = await this.prisma.instance.findUnique({
-        where: { idInstance: instanceId },
+        where: { idInstance: instanceId.toString() },
       });
 
       if (!inst) {
@@ -424,12 +424,14 @@ export class GhlService extends BaseAdapter<
         where: { idInstance: idInst },
       });
 
-      if (instance && instance.settings?.wid !== wid) {
+      const currentSettings = (instance?.settings || {}) as Record<string, any>;
+
+      if (instance && currentSettings.wid !== wid) {
         await this.prisma.instance.update({
           where: { idInstance: idInst },
           data: {
             settings: {
-              ...instance.settings,
+              ...currentSettings,
               wid,
             },
           },
