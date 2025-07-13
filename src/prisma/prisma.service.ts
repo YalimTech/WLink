@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { StorageProvider, Settings } from '../evolutionapi';
 import {
@@ -16,23 +21,23 @@ function parseBigInt(id: number | string | bigint): bigint {
 @Injectable()
 export class PrismaService
   extends PrismaClient
-  implements OnModuleInit,
-    StorageProvider<User, Instance, UserCreateData, UserUpdateData>
+  implements OnModuleInit, StorageProvider<User, Instance, UserCreateData, UserUpdateData>
 {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    const rawUrl = process.env.DATABASE_URL || '';
-    let dbUrl = rawUrl.trim();
+    let dbUrl = (process.env.DATABASE_URL || '').trim();
+
+    // Remove quotes if present
     if (dbUrl.startsWith('"') && dbUrl.endsWith('"')) {
       dbUrl = dbUrl.slice(1, -1);
       process.env.DATABASE_URL = dbUrl;
     }
 
-    if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
-      // Throw early before PrismaClient tries to read the schema
+    // Validate protocol
+    if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
       throw new Error(
-        'Invalid DATABASE_URL. It must start with "postgresql://" or "postgres://"',
+        'Invalid DATABASE_URL. Must start with "postgresql://" or "postgres://"',
       );
     }
 
@@ -42,9 +47,7 @@ export class PrismaService
   async onModuleInit() {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
-      this.logger.error(
-        'Invalid DATABASE_URL. It must start with "postgresql://" or "postgres://"',
-      );
+      this.logger.error('Invalid DATABASE_URL. Must start with "postgresql://" or "postgres://"');
       throw new Error('Invalid DATABASE_URL');
     }
 
@@ -61,9 +64,7 @@ export class PrismaService
           this.logger.error('Unable to connect to database', err as Error);
           throw err;
         }
-        this.logger.warn(
-          `Database connection attempt ${attempt} failed. Retrying in ${delayMs}ms...`,
-        );
+        this.logger.warn(`Connection attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
         await new Promise((res) => setTimeout(res, delayMs));
       }
     }
@@ -81,7 +82,7 @@ export class PrismaService
         create: data as any,
       });
       this.logger.log(`User upserted with ID ${user.id}`);
-      return user as any;
+      return user as User;
     } catch (err) {
       this.logger.error(`Error creating user ${data.id}: ${(err as Error).message}`);
       throw err;
@@ -89,22 +90,17 @@ export class PrismaService
   }
 
   async findUser(identifier: string): Promise<User | null> {
-    return this.user.findUnique({
-      where: { id: identifier },
-    });
+    return this.user.findUnique({ where: { id: identifier } });
   }
 
-  async updateUser(
-    identifier: string,
-    data: UserUpdateData,
-  ): Promise<User> {
+  async updateUser(identifier: string, data: UserUpdateData): Promise<User> {
     try {
       const user = await this.user.update({
         where: { id: identifier },
         data: data as any,
       });
       this.logger.log(`User ${identifier} updated`);
-      return user as any;
+      return user as User;
     } catch (err) {
       this.logger.error(`Error updating user ${identifier}: ${(err as Error).message}`);
       throw err;
@@ -112,9 +108,7 @@ export class PrismaService
   }
 
   async getUserWithTokens(userId: string): Promise<User | null> {
-    return this.user.findUnique({
-      where: { id: userId },
-    });
+    return this.user.findUnique({ where: { id: userId } });
   }
 
   async updateUserTokens(
@@ -129,7 +123,7 @@ export class PrismaService
         data: { accessToken, refreshToken, tokenExpiresAt } as any,
       });
       this.logger.log(`Tokens updated for user ${userId}`);
-      return user as any;
+      return user as User;
     } catch (err) {
       this.logger.error(`Error updating tokens for user ${userId}: ${(err as Error).message}`);
       throw err;
@@ -255,5 +249,6 @@ export class PrismaService
       throw err;
     }
   }
+
 }
 
