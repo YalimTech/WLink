@@ -18,7 +18,7 @@ export class AuthService {
 
       return status;
     } catch (error: any) {
-      // Handle Axios errors (network issues or non-2xx responses)
+      // Handle Axios errors (network issues or non‑2xx responses)
       if (error?.isAxiosError) {
         if (error.response) {
           const statusCode = error.response.status;

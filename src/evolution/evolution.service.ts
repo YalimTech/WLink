@@ -44,4 +44,25 @@ export class EvolutionService {
       throw new HttpException('Error checking instance status', HttpStatus.BAD_REQUEST);
     }
   }
+
+  async configureWebhooks(instanceToken: string, webhookUrl: string) {
+    const url = `${this.baseUrl}/instance/webhook`;
+    const payload = {
+      webhookUrl,
+      webhookTypes: [
+        'incomingMessageReceived',
+        'outgoingMessageReceived',
+        'stateInstanceChanged',
+      ],
+    };
+
+    try {
+      const response$ = this.http.put(url, payload, {
+        headers: { Authorization: `Bearer ${instanceToken}` },
+      });
+      await lastValueFrom(response$);
+    } catch (error) {
+      throw new HttpException('Error configuring webhooks', HttpStatus.BAD_REQUEST);
+    }
+  }
 }
