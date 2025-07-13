@@ -25,7 +25,33 @@ export class PrismaService
     > {
   private readonly logger = new Logger(PrismaService.name);
 
+  constructor() {
+    const rawUrl = process.env.DATABASE_URL || '';
+    let dbUrl = rawUrl.trim();
+    if (dbUrl.startsWith('"') && dbUrl.endsWith('"')) {
+      dbUrl = dbUrl.slice(1, -1);
+      process.env.DATABASE_URL = dbUrl;
+    }
+
+    if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
+      // Throw early before PrismaClient tries to read the schema
+      throw new Error(
+        'Invalid DATABASE_URL. It must start with "postgresql://" or "postgres://"',
+      );
+    }
+
+    super();
+  }
+
   async onModuleInit() {
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl || (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://'))) {
+      this.logger.error(
+        'Invalid DATABASE_URL. It must start with "postgresql://" or "postgres://"',
+      );
+      throw new Error('Invalid DATABASE_URL');
+    }
+
     const retries = parseInt(process.env.DB_CONNECT_RETRIES || '5', 10);
     const delayMs = parseInt(process.env.DB_CONNECT_DELAY_MS || '2000', 10);
 
@@ -52,11 +78,18 @@ export class PrismaService
       throw new Error("Missing user ID for createUser()");
     }
 
-    return this.user.upsert({
-      where: { id: data.id },
-      update: data as any,
-      create: data as any,
-    });
+    try {
+      const user = await this.user.upsert({
+        where: { id: data.id },
+        update: data as any,
+        create: data as any,
+      });
+      this.logger.log(`User upserted with ID ${user.id}`);
+      return user as any;
+    } catch (err) {
+      this.logger.error(`Error creating user ${data.id}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async findUser(identifier: string): Promise<User | null> {
@@ -69,10 +102,17 @@ export class PrismaService
     identifier: string,
     data: UserUpdateData,
   ): Promise<User> {
-    return this.user.update({
-      where: { id: identifier },
-      data: data as any,
-    });
+    try {
+      const user = await this.user.update({
+        where: { id: identifier },
+        data: data as any,
+      });
+      this.logger.log(`User ${identifier} updated`);
+      return user as any;
+    } catch (err) {
+      this.logger.error(`Error updating user ${identifier}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async getUserWithTokens(userId: string): Promise<User | null> {
@@ -87,10 +127,17 @@ export class PrismaService
     refreshToken: string,
     tokenExpiresAt: Date,
   ): Promise<User> {
-    return this.user.update({
-      where: { id: userId },
-      data: { accessToken, refreshToken, tokenExpiresAt } as any,
-    });
+    try {
+      const user = await this.user.update({
+        where: { id: userId },
+        data: { accessToken, refreshToken, tokenExpiresAt } as any,
+      });
+      this.logger.log(`Tokens updated for user ${userId}`);
+      return user as any;
+    } catch (err) {
+      this.logger.error(`Error updating tokens for user ${userId}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
 
@@ -100,7 +147,9 @@ export class PrismaService
     const idInstance = parseBigInt(instanceData.idInstance);
 
     if (!ghlLocationId) {
-      throw new Error("userId (GHL Location ID as string) is required on the instance data to create an Instance.");
+      throw new Error(
+        "userId (GHL Location ID as string) is required on the instance data to create an Instance.",
+      );
     }
 
     const userExists = await this.user.findUnique({
@@ -108,30 +157,38 @@ export class PrismaService
     });
 
     if (!userExists) {
-      throw new NotFoundException(`User (GHL Location) with ID ${ghlLocationId} not found. Cannot create instance.`);
+      throw new NotFoundException(
+        `User (GHL Location) with ID ${ghlLocationId} not found. Cannot create instance.`,
+      );
     }
 
-    const existingInstance = await this.instance.findUnique({
-      where: { idInstance },
-    });
-
-    if (existingInstance) {
-      throw new Error(`Instance with ID ${idInstance} already exists.`);
+    try {
+      const instance = await this.instance.upsert({
+        where: { idInstance },
+        update: {
+          apiTokenInstance: instanceData.apiTokenInstance,
+          stateInstance: stateInstance || InstanceState.notAuthorized,
+          settings: instanceData.settings || {},
+          name: instanceData.name,
+          phoneNumber: instanceData.phoneNumber,
+          user: { connect: { id: ghlLocationId } },
+        } as any,
+        create: {
+          idInstance,
+          apiTokenInstance: instanceData.apiTokenInstance,
+          stateInstance: stateInstance || InstanceState.notAuthorized,
+          settings: instanceData.settings || {},
+          name: instanceData.name,
+          phoneNumber: instanceData.phoneNumber,
+          user: { connect: { id: ghlLocationId } },
+        } as any,
+      });
+      this.logger.log(`Instance ${instance.idInstance} created/updated for user ${ghlLocationId}`);
+      return instance as any;
+    } catch (err) {
+      this.logger.error(`Failed to create instance ${idInstance}: ${(err as Error).message}`);
+      throw err;
     }
-
-    return (await this.instance.create({
-      data: {
-        idInstance,
-        apiTokenInstance: instanceData.apiTokenInstance,
-        stateInstance: stateInstance || InstanceState.notAuthorized,
-        settings: instanceData.settings || {},
-        name: instanceData.name,
-        phoneNumber: instanceData.phoneNumber,
-        user: {
-          connect: { id: ghlLocationId },
-        },
-      } as any,
-    })) as unknown as Instance;
   }
 
   async getInstance(idInstance: number | string | bigint): Promise<(Instance & { user: User }) | null> {
@@ -149,31 +206,59 @@ export class PrismaService
   }
 
   async removeInstance(idInstance: number | string | bigint): Promise<Instance> {
-    return (await this.instance.delete({
-      where: { idInstance: parseBigInt(idInstance) },
-    })) as unknown as Instance;
+    try {
+      const instance = await this.instance.delete({
+        where: { idInstance: parseBigInt(idInstance) },
+      });
+      this.logger.log(`Instance ${instance.idInstance} removed`);
+      return instance as any;
+    } catch (err) {
+      this.logger.error(`Error removing instance ${idInstance}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async updateInstanceSettings(idInstance: number | string | bigint, settings: Settings): Promise<Instance> {
-    return (await this.instance.update({
-      where: { idInstance: parseBigInt(idInstance) },
-      data: { settings: settings || {} },
-    })) as unknown as Instance;
+    try {
+      const instance = await this.instance.update({
+        where: { idInstance: parseBigInt(idInstance) },
+        data: { settings: settings || {} },
+      });
+      this.logger.log(`Settings updated for instance ${instance.idInstance}`);
+      return instance as any;
+    } catch (err) {
+      this.logger.error(`Error updating settings for instance ${idInstance}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async updateInstanceState(idInstance: number | string | bigint, state: InstanceState): Promise<Instance> {
-    return (await this.instance.update({
-      where: { idInstance: parseBigInt(idInstance) },
-      data: { stateInstance: state },
-    })) as unknown as Instance;
+    try {
+      const instance = await this.instance.update({
+        where: { idInstance: parseBigInt(idInstance) },
+        data: { stateInstance: state },
+      });
+      this.logger.log(`State updated for instance ${instance.idInstance} -> ${state}`);
+      return instance as any;
+    } catch (err) {
+      this.logger.error(`Error updating state for instance ${idInstance}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 
   async updateInstanceName(idInstance: number | string | bigint, name: string): Promise<Instance & { user: User }> {
-    return (await this.instance.update({
-      where: { idInstance: parseBigInt(idInstance) },
-      data: { name },
-      include: { user: true },
-    })) as unknown as Instance & { user: User };
+    try {
+      const instance = await this.instance.update({
+        where: { idInstance: parseBigInt(idInstance) },
+        data: { name },
+        include: { user: true },
+      });
+      this.logger.log(`Name updated for instance ${instance.idInstance}`);
+      return instance as any;
+    } catch (err) {
+      this.logger.error(`Error updating name for instance ${idInstance}: ${(err as Error).message}`);
+      throw err;
+    }
   }
 }
 

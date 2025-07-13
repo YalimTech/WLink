@@ -82,7 +82,7 @@ export class GhlController {
 		}
 
 		try {
-        const instance = await this.ghlService.createEvolutionInstanceForUser(
+        const instance = await this.ghlService.createEvolutionApiInstanceForUser(
                                 dto.locationId,
                                 dto.instanceId,
                                 dto.apiToken,

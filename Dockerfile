@@ -17,6 +17,10 @@ RUN --mount=type=secret,id=npm_token,required=false \
 
 COPY . .
 
+# Provide default DB URL to allow `prisma generate` during build
+ARG DATABASE_URL=postgresql://user:password@localhost:5432/adapter
+ENV DATABASE_URL=${DATABASE_URL}
+
 # Skip failing the build if Prisma engine downloads are blocked.
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate && npm run build
