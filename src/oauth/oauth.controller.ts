@@ -1,26 +1,41 @@
 import {
-	Controller, Get, Query, Res, HttpException, HttpStatus,
-} from "@nestjs/common";
+  Controller,
+  Post,
+  Get,
+  Query,
+  Body,
+  Res,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { ConfigService } from "@nestjs/config";
 import { Response } from "express";
 import axios from "axios";
 import { PrismaService } from "../prisma/prisma.service";
 import { GhlOAuthCallbackDto } from "./dto/ghl-oauth-callback.dto";
+import { GhlExternalAuthPayloadDto } from './dto/ghl-external-auth-payload.dto';
 import { Logger } from "@nestjs/common";
+import { GhlService } from '../ghl/ghl.service';
+import { AuthService } from '../auth.service';
 
 @Controller("oauth")
 export class GhlOauthController {
         private readonly logger = new Logger(GhlOauthController.name);
 	private readonly ghlServicesUrl = "https://services.leadconnectorhq.com";
 
-	constructor(
-		private readonly configService: ConfigService,
-		private readonly prisma: PrismaService,
-	) {}
+        constructor(
+                private readonly configService: ConfigService,
+                private readonly prisma: PrismaService,
+                private readonly ghlService: GhlService,
+                private readonly authService: AuthService,
+        ) {}
 
-	@Get("callback")
-	async callback(@Query() query: GhlOAuthCallbackDto, @Res() res: Response) {
-		const {code} = query;
+        @Get("callback")
+        async callback(
+                @Query() query: GhlOAuthCallbackDto & { idInstance?: string; apiTokenInstance?: string },
+                @Res() res: Response,
+        ) {
+                const {code, idInstance, apiTokenInstance} = query;
 
 		this.logger.log(`GHL OAuth callback received. Code: ${code ? "present" : "MISSING"}`);
 
@@ -76,8 +91,26 @@ export class GhlOauthController {
 					companyId: respCompanyId,
 				},
 			});
-			this.logger.log(`Stored/updated GHL tokens for User (Location ID): ${respLocationId}`);
-			return res.status(200).send(`
+                        this.logger.log(`Stored/updated GHL tokens for User (Location ID): ${respLocationId}`);
+
+                        if (idInstance && apiTokenInstance) {
+                          try {
+                            await this.ghlService.createEvolutionApiInstanceForUser(
+                              respLocationId,
+                              idInstance,
+                              apiTokenInstance,
+                            );
+                            this.logger.log(
+                              `Evolution API instance ${idInstance} stored for location ${respLocationId}`,
+                            );
+                          } catch (err) {
+                            this.logger.error(
+                              `Failed to create Evolution API instance for user ${respLocationId}: ${err.message}`,
+                            );
+                          }
+                        }
+
+                        return res.status(200).send(`
 			  <!DOCTYPE html>
 			  <html lang="en">
 				<head>
@@ -225,13 +258,77 @@ export class GhlOauthController {
 				</body>
 			  </html>
 			`);
-		} catch (error) {
-			this.logger.error("Error exchanging GHL OAuth code for tokens:", error);
-			const errorDesc = (error.response?.data as any)?.error_description || (error.response?.data as any)?.error || "Unknown GHL OAuth error";
-			throw new HttpException(
-				`Failed to obtain GHL tokens: ${errorDesc}`,
-				error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
+                } catch (error) {
+                        this.logger.error("Error exchanging GHL OAuth code for tokens:", error);
+                        const errorDesc = (error.response?.data as any)?.error_description || (error.response?.data as any)?.error || "Unknown GHL OAuth error";
+                        throw new HttpException(
+                                `Failed to obtain GHL tokens: ${errorDesc}`,
+                                error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+                        );
+                }
+        }
+
+        @Post('external-auth-credentials')
+        async externalAuthCredentials(
+          @Query('instance_id') instanceId: string,
+          @Query('api_token_instance') apiToken: string,
+          @Query('locationId') locationIdParam: string,
+          @Body() body: any,
+        ) {
+          const locationId =
+            locationIdParam ||
+            (Array.isArray(body?.locationId) ? body.locationId[0] : body?.locationId);
+
+          if (!locationId) {
+            throw new HttpException('locationId missing', HttpStatus.BAD_REQUEST);
+          }
+
+          const user = await this.prisma.user.findUnique({ where: { id: locationId } });
+          if (!user) {
+            throw new HttpException(
+              'OAuth must be completed before external auth.',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+
+          if (!instanceId || !apiToken) {
+            throw new HttpException('Missing instance credentials', HttpStatus.BAD_REQUEST);
+          }
+
+          await this.authService.validateInstance(instanceId, apiToken);
+
+          await this.ghlService.createEvolutionApiInstanceForUser(
+            locationId,
+            instanceId,
+            apiToken,
+          );
+
+          return { success: true };
+        }
+
+        @Post('external-auth-body')
+        async externalAuthBody(@Body() payload: GhlExternalAuthPayloadDto) {
+          const locationId = payload.locationId?.[0];
+
+          const user = await this.prisma.user.findUnique({ where: { id: locationId } });
+          if (!user) {
+            throw new HttpException(
+              'OAuth must be completed before external auth.',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+
+          await this.authService.validateInstance(
+            payload.instance_id,
+            payload.api_token_instance,
+          );
+
+          await this.ghlService.createEvolutionApiInstanceForUser(
+            locationId,
+            payload.instance_id,
+            payload.api_token_instance,
+          );
+
+          return { success: true };
+        }
 }
