@@ -136,6 +136,11 @@ export class GhlOauthController {
   }
 
 
+@Post('/external-auth-credentials')
+async externalAuthWithBody(@Body() body: { instance_id: string; api_token_instance: string }) {
+  console.log('Recibido:', body);
+  return { message: 'Valid credentials' }; // Acepta cualquier cosa
+}
 
 
 
