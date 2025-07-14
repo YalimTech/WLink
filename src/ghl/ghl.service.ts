@@ -373,7 +373,29 @@ export class GhlService extends BaseAdapter<
       this.logger.error(`Failed to update state of instance ${instanceId}: ${error.message}`);
     }
   }
+  
+async verifyEvolutionInstance(instanceId: string, apiToken: string): Promise<boolean> {
+  try {
+    const status = await this.evolutionService.getInstanceStatus(apiToken);
+    const returnedId =
+      status?.idInstance || status?.instanceId || status?.instance_id;
 
+    if (!returnedId || returnedId.toString() !== instanceId.toString()) {
+      this.logger.warn(`Instance ID mismatch: expected ${instanceId}, got ${returnedId}`);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    this.logger.error(`Failed to verify Evolution API instance: ${err.message}`);
+    return false;
+  }
+}
+
+
+  // Verifica que las credenciales proporcionadas (instanceId y apiToken) sean válidas consultando el estado de la instancia en Evolution API
+
+  
   async createEvolutionApiInstanceForUser(
     userId: string,
     instanceId: string | number,
