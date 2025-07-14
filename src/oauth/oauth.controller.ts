@@ -140,32 +140,23 @@ export class GhlOauthController {
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
 async externalAuthCredentials(
   @Req() req: Request,
-  @Query('instance_id') queryInstanceId: string,
-  @Query('api_token_instance') queryApiToken: string,
-  @Body() body: GhlExternalAuthPayloadDto,
+  @Query('instance_id') instanceId: string,
+  @Query('api_token_instance') apiToken: string,
+  @Body() body: any,
 ) {
-  this.logger.debug('[FULL REQUEST]', {
-    query: req.query,
-    body: req.body,
-    headers: req.headers,
-  });
-
-  // ✅ Aquí se toman los datos correctamente según cómo llegan
-  const instanceId = queryInstanceId;
-  const apiToken = queryApiToken;
-  const locationId = Array.isArray(body?.locationId)
-    ? body.locationId[0]
-    : body?.locationId;
+  const locationId =
+    Array.isArray(body.locationId) ? body.locationId[0] : body.locationId;
 
   this.logger.log(
-    `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
+    `Received credentials: instanceId=${instanceId}, locationId=${locationId}`,
   );
 
-  if (!locationId || !instanceId || !apiToken) {
+  if (!instanceId || !apiToken || !locationId) {
     throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
   }
 
   const user = await this.prisma.user.findUnique({ where: { id: locationId } });
+
   if (!user) {
     throw new HttpException(
       'OAuth must be completed before submitting instance credentials.',
@@ -181,13 +172,9 @@ async externalAuthCredentials(
       apiToken,
     );
 
-    this.logger.log(
-      `✅ Validated and stored instance ${instanceId} for location ${locationId}`,
-    );
-
     return { message: 'Valid credentials' };
   } catch (err) {
-    this.logger.error(`❌ Credential validation failed: ${err.message}`);
+    this.logger.error(`Credential validation failed: ${err.message}`);
     throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
   }
 }
