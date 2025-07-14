@@ -138,36 +138,45 @@ export class GhlOauthController {
 
  @Post('/external-auth-credentials')
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-async externalAuthWithBody(
-  @Body() body: { instance_id: string; api_token_instance: string },
+async externalAuthWithQueryAndBody(
+  @Query('instance_id') instanceId: string,
+  @Query('api_token_instance') apiToken: string,
+  @Body('locationId') locationId: string,
 ) {
-  const instanceId = body.instance_id;
-  const apiToken = body.api_token_instance;
-
   this.logger.log(
-    `Received external auth credentials: instanceId=${instanceId}`,
+    `Received external auth (GHL Verify step): instanceId=${instanceId}, locationId=${locationId}`,
   );
 
-  if (!instanceId || !apiToken) {
-    this.logger.warn('Missing instance_id or api_token_instance in body.');
+  if (!locationId || !instanceId || !apiToken) {
+    this.logger.warn('Missing locationId, instance_id, or api_token_instance');
     throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
+  }
+
+  const user = await this.prisma.user.findUnique({ where: { id: locationId } });
+  if (!user) {
+    throw new HttpException(
+      'OAuth must be completed before submitting instance credentials.',
+      HttpStatus.BAD_REQUEST,
+    );
   }
 
   try {
     const isValid = await this.ghlService.verifyEvolutionInstance(instanceId, apiToken);
-
     if (!isValid) {
-      this.logger.warn('Invalid credentials provided for instance verification.');
+      this.logger.warn('Invalid Evolution API credentials');
       throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
     }
 
-    this.logger.log('External auth verified successfully.');
+    await this.ghlService.createEvolutionApiInstanceForUser(locationId, instanceId, apiToken);
+    this.logger.log(`Instance verified and saved: ${instanceId} for location ${locationId}`);
+
     return { message: 'Valid credentials' };
   } catch (err) {
-    this.logger.error(`Credential validation error: ${err.message}`);
+    this.logger.error(`Instance validation failed: ${err.message}`);
     throw new HttpException('Verification failed', HttpStatus.UNAUTHORIZED);
   }
 }
+
 
 
    
