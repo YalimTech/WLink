@@ -136,48 +136,39 @@ export class GhlOauthController {
   }
 
 
-  @Post('external-auth-credentials')
+ @Post('/external-auth-credentials')
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-async externalAuthCredentials(
-  @Req() req: Request,
-  @Query('instance_id') instanceId: string,
-  @Query('api_token_instance') apiToken: string,
-  @Body() body: any,
+async externalAuthWithBody(
+  @Body() body: { instance_id: string; api_token_instance: string },
 ) {
-  const locationId =
-    Array.isArray(body.locationId) ? body.locationId[0] : body.locationId;
+  const instanceId = body.instance_id;
+  const apiToken = body.api_token_instance;
 
   this.logger.log(
-    `Received credentials: instanceId=${instanceId}, locationId=${locationId}`,
+    `Received external auth credentials: instanceId=${instanceId}`,
   );
 
-  if (!instanceId || !apiToken || !locationId) {
+  if (!instanceId || !apiToken) {
+    this.logger.warn('Missing instance_id or api_token_instance in body.');
     throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
   }
 
-  const user = await this.prisma.user.findUnique({ where: { id: locationId } });
-
-  if (!user) {
-    throw new HttpException(
-      'OAuth must be completed before submitting instance credentials.',
-      HttpStatus.BAD_REQUEST,
-    );
-  }
-
   try {
-    await this.authService.validateInstance(instanceId, apiToken);
-    await this.ghlService.createEvolutionApiInstanceForUser(
-      locationId,
-      instanceId,
-      apiToken,
-    );
+    const isValid = await this.ghlService.verifyEvolutionInstance(instanceId, apiToken);
 
+    if (!isValid) {
+      this.logger.warn('Invalid credentials provided for instance verification.');
+      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
+    }
+
+    this.logger.log('External auth verified successfully.');
     return { message: 'Valid credentials' };
   } catch (err) {
-    this.logger.error(`Credential validation failed: ${err.message}`);
-    throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
+    this.logger.error(`Credential validation error: ${err.message}`);
+    throw new HttpException('Verification failed', HttpStatus.UNAUTHORIZED);
   }
 }
+
 
    
   @Post('external-auth-body')
