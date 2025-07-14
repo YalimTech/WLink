@@ -136,44 +136,6 @@ export class GhlOauthController {
   }
 
 
-@Post('/external-auth-credentials')
-@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-async externalAuthWithQueryAndBody(
-  @Query('instance_id') instanceId: string,
-  @Query('api_token_instance') apiToken: string,
-  @Body() body: { locationId?: string },
-) {
-  this.logger.log(`Verifying instance: ${instanceId}`);
-
-  if (!instanceId || !apiToken) {
-    throw new HttpException('Missing instance_id or api_token_instance', HttpStatus.BAD_REQUEST);
-  }
-
-  try {
-    const isValid = await this.ghlService.verifyEvolutionInstance(instanceId, apiToken);
-    if (!isValid) {
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
-    }
-
-    const locationId = Array.isArray(body.locationId)
-      ? body.locationId[0]
-      : body.locationId;
-
-    if (!locationId) {
-      throw new HttpException('Missing locationId in body', HttpStatus.BAD_REQUEST);
-    }
-
-    // Ahora que ya tenemos locationId, instanceId y apiToken válidos, creamos la instancia.
-    await this.ghlService.createEvolutionApiInstanceForUser(locationId, instanceId, apiToken);
-
-    this.logger.log(`Successfully stored instance for location ${locationId}`);
-    return { message: 'Instance verified and saved successfully' };
-
-  } catch (err) {
-    this.logger.error(`Verification failed: ${err.message}`);
-    throw new HttpException('Verification failed', HttpStatus.UNAUTHORIZED);
-  }
-}
 
 
 
