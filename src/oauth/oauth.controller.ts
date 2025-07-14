@@ -136,46 +136,36 @@ export class GhlOauthController {
   }
 
 
-@Post("external-auth-credentials")
+@Post('external-auth-credentials')
 @HttpCode(HttpStatus.OK)
-@UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
-async handleExternalAuthCredentials(
-  @Body() data: GhlExternalAuthPayloadDto,
-): Promise<{ success: boolean; message?: string; error?: string }> {
-  this.logger.log(`Received external authentication credentials for locationId: ${data.locationId}`);
-  this.logger.debug(`External Auth Payload: ${JSON.stringify(data)}`);
+async handleExternalAuthCredentials(@Body() data: GhlExternalAuthPayloadDto) {
+  if (!data.locationId || data.locationId.length === 0) {
+    throw new HttpException('locationId is missing', HttpStatus.BAD_REQUEST);
+  }
+  if (!data.instance_id || !data.api_token_instance) {
+    throw new HttpException('Missing Evolution API credentials', HttpStatus.BAD_REQUEST);
+  }
 
-  const ghlUser = await this.prisma.findUser(data.locationId[0]); // <- ¡VALIDA QUE EXISTE!
+  const ghlUser = await this.prisma.findUser(data.locationId[0]);
   if (!ghlUser) {
     throw new HttpException(
       {
         success: false,
-        message: "OAuth must be completed first.",
-        error: "NO_OAUTH",
+        message: 'OAuth step might have failed or been skipped.',
       },
       HttpStatus.BAD_REQUEST,
     );
   }
 
-  try {
-    await this.ghlService.createEvolutionApiInstanceForUser(
-      data.locationId[0],
-      data.instance_id,
-      data.api_token_instance,
-    );
+  await this.ghlService.createEvolutionApiInstanceForUser(
+    data.locationId[0],
+    data.instance_id,
+    data.api_token_instance,
+  );
 
-    return {
-      success: true,
-      message: "Evolution API instance connected successfully.",
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Error connecting Evolution API",
-      error: error.message || "UNKNOWN_ERROR",
-    };
-  }
+  return { success: true, message: 'Evolution API instance connected successfully.' };
 }
+
 
 
 
