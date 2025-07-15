@@ -86,6 +86,7 @@ export class GhlController {
                                 dto.locationId,
                                 dto.instanceId,
                                 dto.apiToken,
+                                undefined,
                                 dto.name,
                         );
 
