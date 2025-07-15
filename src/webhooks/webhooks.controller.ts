@@ -85,7 +85,7 @@ export class WebhooksController {
       if (!conversationProviderId) throw new BadRequestException("Conversation provider ID is wrong");
       if (!locationId) throw new BadRequestException("Location ID is missing");
 
-      let instanceId: string | bigint | null = null;
+      let instanceId: string | null = null;
 
       const contact = await this.ghlService.getGhlContact(locationId, ghlWebhook.phone);
       if (contact?.tags) {
