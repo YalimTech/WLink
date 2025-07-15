@@ -14,8 +14,8 @@ import {
   UserUpdateData,
 } from '../types';
 
-function parseBigInt(id: number | string | bigint): bigint {
-  return typeof id === 'bigint' ? id : BigInt(id);
+function parseId(id: number | string | bigint): string {
+  return typeof id === 'string' ? id : id.toString();
 }
 
 @Injectable()
@@ -133,7 +133,7 @@ export class PrismaService
   async createInstance(instanceData: any): Promise<Instance> {
     const ghlLocationId = instanceData.user?.connect?.id;
     const stateInstance = instanceData.stateInstance;
-    const idInstance = parseBigInt(instanceData.idInstance);
+    const idInstance = parseId(instanceData.idInstance);
 
     if (!ghlLocationId) {
       throw new Error(
@@ -182,7 +182,7 @@ export class PrismaService
 
   async getInstance(idInstance: number | string | bigint): Promise<(Instance & { user: User }) | null> {
     return (await this.instance.findUnique({
-      where: { idInstance: parseBigInt(idInstance) },
+      where: { idInstance: parseId(idInstance) },
       include: { user: true },
     })) as unknown as (Instance & { user: User }) | null;
   }
@@ -197,7 +197,7 @@ export class PrismaService
   async removeInstance(idInstance: number | string | bigint): Promise<Instance> {
     try {
       const instance = await this.instance.delete({
-        where: { idInstance: parseBigInt(idInstance) },
+        where: { idInstance: parseId(idInstance) },
       });
       this.logger.log(`Instance ${instance.idInstance} removed`);
       return instance as any;
@@ -210,7 +210,7 @@ export class PrismaService
   async updateInstanceSettings(idInstance: number | string | bigint, settings: Settings): Promise<Instance> {
     try {
       const instance = await this.instance.update({
-        where: { idInstance: parseBigInt(idInstance) },
+        where: { idInstance: parseId(idInstance) },
         data: { settings: settings || {} },
       });
       this.logger.log(`Settings updated for instance ${instance.idInstance}`);
@@ -224,7 +224,7 @@ export class PrismaService
   async updateInstanceState(idInstance: number | string | bigint, state: InstanceState): Promise<Instance> {
     try {
       const instance = await this.instance.update({
-        where: { idInstance: parseBigInt(idInstance) },
+        where: { idInstance: parseId(idInstance) },
         data: { stateInstance: state },
       });
       this.logger.log(`State updated for instance ${instance.idInstance} -> ${state}`);
@@ -238,7 +238,7 @@ export class PrismaService
   async updateInstanceName(idInstance: number | string | bigint, name: string): Promise<Instance & { user: User }> {
     try {
       const instance = await this.instance.update({
-        where: { idInstance: parseBigInt(idInstance) },
+        where: { idInstance: parseId(idInstance) },
         data: { name },
         include: { user: true },
       });
