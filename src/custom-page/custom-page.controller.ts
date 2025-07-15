@@ -70,8 +70,10 @@ export class CustomPageController {
 		}
 	}
 
-	private generateCustomPageHTML(): string {
-		return `
+        private generateCustomPageHTML(): string {
+                const consoleBase = this.configService.get<string>("EVOLUTION_CONSOLE_URL") ||
+                        "https://console.evolution-api.com";
+                return `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -917,7 +919,7 @@ export class CustomPageController {
             }
             
             openEvolutionConsole(instanceId) {
-                          const consoleUrl = \`https://console.evolution-api.com/instanceList/\${instanceId}\`;
+                          const consoleUrl = \`${consoleBase}/instanceList/\${instanceId}\`;
                           window.open(consoleUrl, '_blank', 'noopener,noreferrer');
                         }
 
