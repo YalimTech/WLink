@@ -4,6 +4,7 @@ import {
   Get,
   Query,
   Body,
+  HttpCode,
   Res,
   Req,
   HttpException,
@@ -135,6 +136,19 @@ export class GhlOauthController {
     }
   }
 
+  @Post('external-auth-credentials')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  async externalAuthCredentials(
+    @Query('instance_id') queryInstanceId: string,
+    @Query('api_token_instance') queryApiToken: string,
+    @Query('locationId') queryLocationId: string,
+    @Body() body: GhlExternalAuthPayloadDto,
+  ) {
+    const instanceId = queryInstanceId || body?.instance_id;
+    const apiToken = queryApiToken || body?.api_token_instance;
+    const locationId = queryLocationId || body?.locationId?.[0];
+
 
 @Post('external-auth-credentials')
 @HttpCode(HttpStatus.OK)
@@ -172,6 +186,7 @@ async handleExternalAuthCredentials(@Body() data: GhlExternalAuthPayloadDto) {
 
    
   @Post('external-auth-body')
+  @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async externalAuthBody(
     @Body() payload: GhlExternalAuthPayloadDto,
