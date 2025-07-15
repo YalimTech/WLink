@@ -266,7 +266,10 @@ export class GhlService extends BaseAdapter<
     return sorted[0];
   }
 
-  async handlePlatformWebhook(ghlWebhook: GhlWebhookDto, instanceId: bigint): Promise<void> {
+  async handlePlatformWebhook(
+    ghlWebhook: GhlWebhookDto,
+    instanceId: string | number,
+  ): Promise<void> {
     try {
       const message: GhlPlatformMessage = {
         direction: "outbound",
@@ -279,7 +282,7 @@ export class GhlService extends BaseAdapter<
       };
 
       const inst = await this.prisma.instance.findUnique({
-        where: { idInstance: instanceId },
+        where: { idInstance: instanceId.toString() },
       });
 
       if (!inst) {
@@ -302,7 +305,7 @@ export class GhlService extends BaseAdapter<
   }
 
   async handleEvolutionWebhook(webhook: EvolutionWebhook): Promise<void> {
-    const idInstance = BigInt(webhook.instanceId as any);
+    const idInstance = webhook.instanceId?.toString();
 
     const instance = await this.prisma.instance.findFirst({
       where: { idInstance },
@@ -328,12 +331,12 @@ export class GhlService extends BaseAdapter<
   }
 
   async updateInstanceState(
-    instanceId: string | number | bigint,
+    instanceId: string | number,
     newState: InstanceState | string,
   ): Promise<void> {
     try {
       await this.prisma.instance.update({
-        where: { idInstance: BigInt(instanceId as any) },
+        where: { idInstance: instanceId.toString() },
         data: {
           stateInstance: newState as InstanceState,
         },
@@ -346,12 +349,12 @@ export class GhlService extends BaseAdapter<
 
   async createEvolutionApiInstanceForUser(
     userId: string,
-    instanceId: string | number | bigint,
+    instanceId: string | number,
     apiToken: string,
     wid?: string,
     name?: string,
   ): Promise<Instance> {
-    const idInst = BigInt(instanceId as any);
+    const idInst = instanceId.toString();
 
     const existing = await this.prisma.instance.findFirst({
       where: { idInstance: idInst },
@@ -367,7 +370,7 @@ export class GhlService extends BaseAdapter<
       const status = await this.evolutionService.getInstanceStatus(apiToken);
       const returnedId =
         status?.idInstance || status?.instanceId || status?.instance_id;
-      if (returnedId && BigInt(returnedId) !== idInst) {
+      if (returnedId && returnedId.toString() !== idInst) {
         throw new IntegrationError("Instance ID mismatch");
       }
 
@@ -409,24 +412,26 @@ export class GhlService extends BaseAdapter<
   }
 
   async handleStateWebhook(
-    instanceId: string | number | bigint,
+    instanceId: string | number,
     newState: string,
     wid?: string,
   ): Promise<void> {
     await this.updateInstanceState(instanceId, newState as InstanceState);
 
     if (wid) {
-      const idInst = BigInt(instanceId as any);
+      const idInst = instanceId.toString();
       const instance = await this.prisma.instance.findUnique({
         where: { idInstance: idInst },
       });
 
-      if (instance && instance.settings?.wid !== wid) {
+      const currentSettings = (instance?.settings || {}) as Record<string, any>;
+
+      if (instance && currentSettings.wid !== wid) {
         await this.prisma.instance.update({
           where: { idInstance: idInst },
           data: {
             settings: {
-              ...instance.settings,
+              ...currentSettings,
               wid,
             },
           },
