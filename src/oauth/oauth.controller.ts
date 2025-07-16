@@ -1,10 +1,7 @@
 import {
   Controller,
-  Post,
   Get,
   Query,
-  Body,
-  HttpCode,
   Res,
   HttpException,
   HttpStatus,
@@ -131,47 +128,6 @@ export class GhlOauthController {
   }
 
 
-@Post('external-auth-credentials')
-@HttpCode(HttpStatus.OK)
-async handleExternalAuthCredentials(
-  @Query('instance_id') instanceId: string,
-  @Query('api_token_instance') apiToken: string,
-  @Body() body: { locationId?: string | string[] },
-): Promise<{ message: string }> {
-  this.logger.log(`Handling external auth credentials for instance: ${instanceId}`);
-
-  let locationId: string | undefined;
-  if (Array.isArray(body.locationId) && body.locationId.length > 0) {
-    locationId = body.locationId[0];
-  } else if (typeof body.locationId === 'string') {
-    locationId = body.locationId;
-  }
-
-  if (!locationId) {
-    this.logger.error('Verification failed: locationId is missing from the request body.', body);
-    throw new HttpException('locationId is missing from the request body.', HttpStatus.BAD_REQUEST);
-  }
-
-  if (!instanceId || !apiToken) {
-    this.logger.error('Verification failed: Missing instance_id or api_token_instance in query parameters.');
-    throw new HttpException('Missing Evolution API credentials in query parameters.', HttpStatus.BAD_REQUEST);
-  }
-
-  const user = await this.prisma.findUser(locationId);
-  if (!user) {
-    this.logger.error(`User not found for locationId: ${locationId}. The OAuth process must be completed first.`);
-    throw new HttpException(
-      'User authentication not found. Please complete the OAuth step first.',
-      HttpStatus.FORBIDDEN,
-    );
-  }
-
-  await this.evolutionApiService.createEvolutionApiInstanceForUser(locationId, instanceId, apiToken);
-
-  this.logger.log(`Successfully verified and created instance ${instanceId} for location ${locationId}.`);
-
-  return { message: 'Evolution API instance connected successfully.' };
-}
 
 
 

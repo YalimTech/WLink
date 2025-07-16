@@ -44,34 +44,37 @@ export class EvolutionApiController {
 
   @Post()
   async createInstance(@Req() req: AuthReq, @Body() dto: CreateInstanceDto) {
+    // El locationId se obtiene del contexto seguro verificado por GhlContextGuard.
     const { locationId } = req;
-    this.logger.log(`Creating instance for location: ${locationId}`);
+    this.logger.log(`Executing createInstance for location from context: ${locationId}`);
 
-    // La validación del DTO se puede hacer con Pipes de NestJS en el futuro
-    if (!dto.instanceId || !dto.apiToken) {
-        throw new HttpException('Instance ID and API Token are required', HttpStatus.BAD_REQUEST);
+    // Medida de seguridad: Asegura que el locationId del payload coincida con el del usuario autenticado.
+    if (locationId !== dto.locationId) {
+        throw new HttpException('Context and payload locationId mismatch. Unauthorized.', HttpStatus.FORBIDDEN);
     }
-    
-    // El GhlContextGuard ya asegura que el locationId es el correcto
-    dto.locationId = locationId;
+
+    // Validación de campos requeridos.
+    if (!dto.instanceId || !dto.apiToken) {
+        throw new HttpException('Instance ID and API Token are required fields.', HttpStatus.BAD_REQUEST);
+    }
 
     try {
+      // La lógica de validación y creación de la instancia ya está en el servicio.
       const instance = await this.evolutionApiService.createEvolutionApiInstanceForUser(
         dto.locationId,
         dto.instanceId,
         dto.apiToken,
         dto.name,
       );
-      return {
-        success: true,
-        instance,
-      };
+
+      return { success: true, instance };
     } catch (error) {
-      this.logger.error(`Error creating instance: ${error.message}`, error.stack);
+      this.logger.error(`Failed to create instance for location ${locationId}: ${error.message}`, error.stack);
       if (error instanceof HttpException) {
-        throw error;
+        throw error; // Re-lanza la excepción si ya es de tipo HTTP.
       }
-      throw new HttpException('Failed to create instance', HttpStatus.INTERNAL_SERVER_ERROR);
+      // Envuelve errores inesperados para una respuesta consistente.
+      throw new HttpException('Failed to create instance due to an internal server error.', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
