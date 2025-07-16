@@ -14,7 +14,6 @@ export interface CreateInstanceDto {
   apiToken: string;
   name?: string;
 }
-
 export interface UpdateInstanceDto {
   name: string;
 }
@@ -23,7 +22,7 @@ export interface UpdateInstanceDto {
 export type UserCreateData = Prisma.UserCreateInput;
 export type UserUpdateData = Prisma.UserUpdateInput;
 
-// --- Interfaces para Webhooks de Evolution API (CORREGIDO Y COMPLETO) ---
+// --- Interfaces para Webhooks de Evolution API ---
 export interface MessageKey {
   remoteJid: string;
   fromMe: boolean;
@@ -32,15 +31,16 @@ export interface MessageKey {
 export interface MessageData {
   key: MessageKey;
   pushName?: string;
-  message?: { conversation?: string; extendedTextMessage?: { text: string } };
+  message?: { conversation?: string; extendedTextMessage?: { text: string }; [key: string]: any; };
   messageTimestamp: number;
+  [key: string]: any;
 }
 export interface EvolutionWebhook {
   event: string;
   instance: string;
   data: MessageData;
   sender: string;
-  // --- CAMPOS AÑADIDOS PARA RESOLVER ERRORES ---
+  // --- CAMPOS AÑADIDOS PARA RESOLVER ERRORES DE INCOMPATIBILIDAD ---
   type?: string;
   timestamp?: number;
 }
@@ -56,8 +56,8 @@ export interface GhlUserData {
 }
 export interface GhlPlatformAttachment {
   url: string;
-  // --- CAMPO AÑADIDO PARA RESOLVER ERRORES ---
   fileName?: string;
+  type?: string; // Campo añadido para resolver error
 }
 export interface MessageStatusPayload {
   status?: 'delivered' | 'read' | 'failed' | 'pending';
@@ -72,11 +72,22 @@ export interface GhlPlatformMessage {
   attachments?: GhlPlatformAttachment[];
   timestamp?: Date;
 }
+// --- CORREGIDO: Resuelve errores de importación ---
+export interface GhlContactUpsertRequest {
+  name?: string | null;
+  locationId: string;
+  phone?: string | null;
+  tags?: string[];
+  source?: string;
+}
 export interface GhlContact {
   id: string;
   name: string;
   locationId: string;
   phone: string;
   tags: string[];
+}
+export interface GhlContactUpsertResponse {
+  contact: GhlContact;
 }
 
