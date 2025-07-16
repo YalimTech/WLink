@@ -1,4 +1,3 @@
-// Parte 1 - Importaciones y definición inicial de la clase
 import {
   Injectable,
   HttpException,
@@ -7,13 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import {
-  BaseAdapter,
-  NotFoundError,
-  IntegrationError,
-} from '../core/base-adapter';
+import { BaseAdapter, NotFoundError, IntegrationError } from '../core/base-adapter';
 import { GhlTransformer } from './ghl.transformer';
 import { PrismaService, parseId } from '../prisma/prisma.service';
 import { EvolutionService } from '../evolution/evolution.service';
@@ -49,10 +42,8 @@ export class GhlService extends BaseAdapter<
     super(ghlTransformer, prisma);
   }
 
-
-  // Parte 2 - Método getHttpClient (gestión de tokens y cliente Axios con retry)
-  
-    private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {
+  // --- Manejo del cliente HTTP de GoHighLevel (con refresco de token) ---
+  private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {
     const userWithTokens = await this.prisma.getUserWithTokens(ghlUserId);
     if (
       !userWithTokens ||
@@ -106,19 +97,12 @@ export class GhlService extends BaseAdapter<
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config;
-        const userForRetry = await this.prisma.getUserWithTokens(ghlUserId);
-        if (!userForRetry?.refreshToken) {
-          this.logger.error(`User ${ghlUserId} or refresh token disappeared during retry.`);
-          throw error;
-        }
-
-        if (
-          error.response?.status === 401 &&
-          originalRequest &&
-          !originalRequest.headers['_retry']
-        ) {
+        if (error.response?.status === 401 && originalRequest && !originalRequest.headers['_retry']) {
           originalRequest.headers['_retry'] = true;
           try {
+            const userForRetry = await this.prisma.getUserWithTokens(ghlUserId);
+            if (!userForRetry?.refreshToken) throw new Error("No refresh token available");
+
             const newTokens = await this.refreshGhlAccessToken(userForRetry.refreshToken);
             await this.prisma.updateUserTokens(
               ghlUserId,
@@ -130,365 +114,204 @@ export class GhlService extends BaseAdapter<
             return httpClient(originalRequest);
           } catch (refreshError) {
             this.logger.error(`Retry token refresh failed: ${refreshError.message}`);
-            throw new HttpException(
-              `Token refresh failed. Re-authorize.`,
-              HttpStatus.UNAUTHORIZED,
-            );
+            throw new HttpException(`Token refresh failed. Re-authorize.`, HttpStatus.UNAUTHORIZED);
           }
         }
-
-        const status = error.response?.status;
-        const data = error.response?.data;
-        this.logger.error(
-          `GHL API error [${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}] - ${status}: ${JSON.stringify(data)}`,
-        );
-        throw new HttpException(
-          (data as any)?.message || 'GHL API request failed',
-          status || HttpStatus.INTERNAL_SERVER_ERROR,
-        );
+        return Promise.reject(error);
       },
     );
-
     return httpClient;
   }
 
-  private async refreshGhlAccessToken(refreshToken: string): Promise<{
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
-  }> {
+  private async refreshGhlAccessToken(refreshToken: string): Promise<any> {
     const clientId = this.configService.get<string>('GHL_CLIENT_ID');
     const clientSecret = this.configService.get<string>('GHL_CLIENT_SECRET');
-
-    const response = await axios.post('https://services.leadconnectorhq.com/oauth/token', {
+    const response = await axios.post(`${this.ghlApiBaseUrl}/oauth/token`, new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: clientId,
       client_secret: clientSecret,
       refresh_token: refreshToken,
-    });
-
+      user_type: "Location",
+    }));
     return response.data;
   }
-
-  // Parte 3 - Método refreshGhlAccessToken (renovación de tokens GHL)
   
-    async findOrCreateGhlContact(locationId: string, phone: string): Promise<GhlContact> {
-    try {
-      const httpClient = await this.getHttpClient(locationId);
-      const response = await httpClient.get(`/contacts/lookup?phone=${phone}`);
-      return response.data.contact as GhlContact;
-    } catch (error) {
-      this.logger.warn(`Contact not found by phone in GHL. Creating new one...`);
-      const contactPayload: GhlContactUpsertRequest = {
-        locationId,
-        contact: {
-          phone,
-          name: `User ${phone.slice(-4)}`,
-          tags: ['whatsapp-created'],
-          customField: {},
-        },
-      };
-
-      const httpClient = await this.getHttpClient(locationId);
-      const createResponse = await httpClient.post('/contacts/upsert', contactPayload);
-      return createResponse.data.contact;
-    }
-  }
-
-  async getGhlContact(locationId: string, contactId: string): Promise<GhlContact | null> {
-    try {
-      const httpClient = await this.getHttpClient(locationId);
-      const response = await httpClient.get(`/contacts/${contactId}`);
-      return response.data.contact as GhlContact;
-    } catch (error) {
-      this.logger.error(`Failed to fetch contact ${contactId} in GHL: ${error.message}`);
-      return null;
-    }
-  }
-
-  async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact> {
-    return this.findOrCreateGhlContact(locationId, phone);
-  }
-
-
-
-  // Parte 4 - Gestión de contactos GHL (findOrCreate, getById, getByPhone)
-
-    async updateGhlMessageStatus(
-    locationId: string,
-    messageId: string,
-    status: 'sent' | 'delivered' | 'read' | 'failed',
-    meta: Partial<MessageStatusPayload> = {},
-  ): Promise<void> {
-    try {
-      const httpClient = await this.getHttpClient(locationId);
-      await httpClient.put(`/conversations/messages/status/${messageId}`, {
-        status,
-        ...meta,
-      });
-      this.logger.debug(`Updated status of message ${messageId} to ${status}`);
-    } catch (error) {
-      this.logger.error(`Failed to update status of message ${messageId}: ${error.message}`);
-    }
-  }
-
-  async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
+  // --- Lógica de Contactos ---
+  async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact | null> {
     const httpClient = await this.getHttpClient(locationId);
     try {
-      const response = await httpClient.post('/conversations/messages/inbound', message);
-      return response.data as SendResponse;
+        const response = await httpClient.get(`/contacts/lookup?phone=${encodeURIComponent(phone)}`);
+        return (response.data?.contacts?.[0]) || null;
     } catch (error) {
-      this.logger.error(`Failed to post inbound message to GHL: ${error.message}`);
-      throw new IntegrationError('Failed to post inbound message to GHL');
+        if ((error as AxiosError).response?.status === 404) return null;
+        this.logger.error(`Error fetching contact by phone in GHL: ${error.message}`);
+        throw error;
     }
   }
 
-  // Alias para compatibilidad
-  async sendInboundMessageToGhl(payload: {
-    locationId: string;
-    message: GhlPlatformMessage;
-  }): Promise<SendResponse> {
-    return this.postInboundMessageToGhl(payload.locationId, payload.message);
-  }
-
-
-  // Parte 5 - Estado y mensajes (updateMessageStatus, inbound message, envío general)
-
-    async createPlatformClient(locationId: string): Promise<HttpService> {
-    const accessToken = await this.getAccessToken(locationId);
-    return new HttpService(
-      axios.create({
-        baseURL: this.ghlApiBaseUrl,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Version: this.ghlApiVersion,
-        },
-      }),
-    );
-  }
-
-  async sendToPlatform(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
-    const client = await this.createPlatformClient(locationId);
-    try {
-      const response = await firstValueFrom(
-        client.post("/conversations/messages/send", message),
-      );
-      return response.data as SendResponse;
-    } catch (error) {
-      this.logger.error(`Error sending message to GHL platform: ${error.message}`);
-      throw new IntegrationError("Failed to send message to GHL");
-    }
-  }
-
-  async getInstanceByUserId(userId: string): Promise<Instance | null> {
-    const instances = await this.prisma.getInstancesByUserId(userId);
-    if (!instances || instances.length === 0) return null;
-    const sorted = instances.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-    return sorted[0];
-  }
-
-
-  
-    // Parte 6 - Webhooks: desde GHL y desde Evolution API
-  
-  async handlePlatformWebhook(
-    ghlWebhook: GhlWebhookDto,
+  private async findOrCreateGhlContact(
+    locationId: string,
+    phone: string,
+    name: string,
     instanceId: string,
-  ): Promise<void> {
-    try {
-      const message: GhlPlatformMessage = {
-        direction: "outbound",
-        locationId: ghlWebhook.locationId,
-        message: ghlWebhook.message,
-        phone: ghlWebhook.phone,
-        type: ghlWebhook.type,
-        attachments: ghlWebhook.attachments?.map((url) => ({ url })),
-        messageId: ghlWebhook.messageId,
+  ): Promise<GhlContact> {
+    const httpClient = await this.getHttpClient(locationId);
+    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    const tag = `whatsapp-instance-${instanceId}`;
+
+    // Primero, intenta buscar el contacto
+    let contact = await this.getGhlContactByPhone(locationId, formattedPhone);
+
+    if (contact) {
+      // Si el contacto existe y no tiene la etiqueta, la añadimos
+      if (!contact.tags.includes(tag)) {
+        this.logger.log(`Contact ${contact.id} found, adding instance tag: ${tag}`);
+        await httpClient.put(`/contacts/${contact.id}`, {
+          tags: [...contact.tags, tag],
+        });
+      }
+      return contact;
+    } else {
+      // Si no existe, lo creamos con la etiqueta desde el principio
+      this.logger.log(`Contact not found, creating new one for phone ${formattedPhone} with tag ${tag}`);
+      const createPayload: GhlContactUpsertRequest = {
+        locationId,
+        name: name || `WhatsApp User ${formattedPhone.slice(-4)}`,
+        phone: formattedPhone,
+        tags: [tag, 'whatsapp-created'],
+        source: 'EvolutionAPI',
       };
+      const response = await httpClient.post('/contacts/', createPayload);
+      return response.data.contact;
+    }
+  }
 
-      const inst = await this.prisma.instance.findUnique({
-        where: { idInstance: parseId(instanceId) },
-      });
+  // --- Lógica de Webhooks ---
+  async handlePlatformWebhook(ghlWebhook: GhlWebhookDto, instanceId: string): Promise<void> {
+    this.logger.log(`Handling Outbound GHL Webhook for Instance ${instanceId}`);
+    const instance = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
 
-      if (!inst) {
-        throw new NotFoundError(`Instance ${instanceId} not found`);
-      }
+    if (!instance) throw new NotFoundError(`Instance ${instanceId} not found`);
+    if (instance.stateInstance !== 'authorized') throw new IntegrationError('Instance is not authorized');
+    if (!ghlWebhook.phone) throw new IntegrationError('Missing phone number to send message');
 
-      if (!message.phone) {
-        throw new IntegrationError("Missing phone number to send message");
-      }
+    // Aquí se utiliza el EvolutionService para enviar el mensaje
+    await this.evolutionService.sendMessage(
+      instance.apiTokenInstance,
+      ghlWebhook.phone,
+      ghlWebhook.message,
+    );
+    await this.updateGhlMessageStatus(ghlWebhook.locationId, ghlWebhook.messageId, 'delivered');
+  }
 
-      await this.evolutionService.sendMessage(
-        inst.apiTokenInstance,
-        message.phone,
-        message.message,
+  async handleEvolutionWebhook(webhook: EvolutionWebhook, instanceId: string): Promise<void> {
+    this.logger.log(`Handling Inbound Evolution Webhook for Instance ${instanceId}`);
+    const instance = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
+
+    if (!instance) throw new NotFoundError(`Webhook for unknown instance ${instanceId}. Ignoring.`);
+    
+    // Solo procesamos mensajes nuevos
+    if (webhook.event === 'messages.upsert' && webhook.data?.key?.remoteJid) {
+      const messageData = webhook.data;
+      const senderJid = messageData.key.remoteJid;
+      const senderPhone = senderJid.split('@')[0];
+      const senderName = messageData.pushName || `WhatsApp User ${senderPhone.slice(-4)}`;
+
+      // 1. Encuentra o crea el contacto en GHL y lo etiqueta
+      const ghlContact = await this.findOrCreateGhlContact(
+        instance.userId,
+        senderPhone,
+        senderName,
+        instance.idInstance,
       );
-    } catch (error) {
-      this.logger.error(`Failed to handle outbound message webhook: ${error.message}`, error);
-      throw new Error("Failed to forward outbound message to Evolution API");
+      if (!ghlContact?.id) throw new Error('Failed to resolve GHL contact.');
+
+      // 2. Transforma el mensaje al formato de GHL
+      const transformedMsg = this.ghlTransformer.toPlatformMessage(webhook);
+      transformedMsg.contactId = ghlContact.id; // Asignamos el ID real
+      transformedMsg.locationId = instance.userId;
+
+      // 3. Envía el mensaje a GHL
+      await this.postInboundMessageToGhl(instance.userId, transformedMsg);
     }
   }
 
-  async handleEvolutionWebhook(webhook: EvolutionWebhook): Promise<void> {
-    const idInstance = webhook.instanceId
-      ? parseId(webhook.instanceId)
-      : undefined;
-
-    const instance = await this.prisma.instance.findFirst({
-      where: { idInstance },
-    });
-
-    if (!instance) {
-      this.logger.error(`No instance found for ID ${webhook.instanceId}`);
-      return;
-    }
-
-    const locationId = instance.userId;
-
-    const inbound: GhlPlatformMessage = {
-      direction: "inbound",
-      locationId,
-      phone: webhook.messageData?.senderData.chatId.replace("@c.us", ""),
-      message: webhook.messageData?.textMessageData?.textMessage || "",
-      messageId: webhook.messageData?.idMessage,
-      type: webhook.messageData?.typeMessage,
-    };
-
-    await this.postInboundMessageToGhl(locationId, inbound);
-  }
-  
-
-
-// Parte 7 - Gestión de estado e instancias (crear, actualizar, manejar state webhooks)
-
-  async updateInstanceState(
-    instanceId: string,
-    newState: InstanceState | string,
+  // --- Lógica de Mensajería y Estado ---
+  async updateGhlMessageStatus(
+    locationId: string,
+    messageId: string,
+    status: 'delivered' | 'read' | 'failed' | 'sent',
+    meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
-    try {
-      await this.prisma.instance.update({
-        where: { idInstance: parseId(instanceId) },
-        data: {
-          stateInstance: newState as InstanceState,
-        },
-      });
-      this.logger.log(`Instance ${instanceId} state updated to ${newState}`);
-    } catch (error) {
-      this.logger.error(`Failed to update state of instance ${instanceId}: ${error.message}`);
-    }
+    const httpClient = await this.getHttpClient(locationId);
+    await httpClient.put(`/conversations/messages/${messageId}/status`, { status, ...meta });
+    this.logger.debug(`Updated status of message ${messageId} to ${status}`);
   }
-  
-async verifyEvolutionInstance(instanceId: string, apiToken: string): Promise<boolean> {
-  try {
-    const status = await this.evolutionService.getInstanceStatus(apiToken);
-    const returnedId =
-      status?.idInstance || status?.instanceId || status?.instance_id;
 
-    if (!returnedId || returnedId.toString() !== instanceId.toString()) {
-      this.logger.warn(`Instance ID mismatch: expected ${instanceId}, got ${returnedId}`);
-      return false;
+  async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<void> {
+    const httpClient = await this.getHttpClient(locationId);
+    let conversation = (await httpClient.get(`/conversations/search?locationId=${locationId}&contactId=${message.contactId}`)).data.conversations?.[0];
+
+    if (!conversation) {
+      conversation = (await httpClient.post(`/conversations/`, { locationId, contactId: message.contactId })).data.conversation;
     }
 
-    return true;
-  } catch (err) {
-    this.logger.error(`Failed to verify Evolution API instance: ${err.message}`);
-    return false;
+    const payload = {
+      type: 'Custom',
+      conversationId: conversation.id,
+      message: message.message,
+      direction: 'inbound',
+      conversationProviderId: this.configService.get<string>('GHL_CONVERSATION_PROVIDER_ID'),
+      attachments: message.attachments?.map((att) => att.url),
+    };
+    
+    await httpClient.post(`/conversations/messages/inbound`, payload);
+    this.logger.log(`Posted inbound message to GHL conversation ${conversation.id}`);
   }
-}
 
-
-  // Verifica que las credenciales proporcionadas (instanceId y apiToken) sean válidas consultando el estado de la instancia en Evolution API
-
-  
+  // --- Lógica de Creación de Instancias ---
   async createEvolutionApiInstanceForUser(
     userId: string,
     instanceId: string,
     apiToken: string,
-    wid?: string,
     name?: string,
   ): Promise<Instance> {
-    const idInst = parseId(instanceId);
+    const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
+    if (existing) throw new HttpException('Instance with this ID already exists', HttpStatus.CONFLICT);
 
-    const existing = await this.prisma.instance.findFirst({
-      where: { idInstance: idInst },
-    });
-
-    if (existing) {
-      this.logger.warn(`Instance ${instanceId} already exists. Skipping creation.`);
-      return existing as unknown as Instance;
-    }
-
+    // Validar credenciales con Evolution API
     try {
       const status = await this.evolutionService.getInstanceStatus(apiToken);
-      const returnedId =
-        status?.idInstance || status?.instanceId || status?.instance_id;
-      if (returnedId && returnedId.toString() !== idInst) {
-        throw new IntegrationError("Instance ID mismatch");
+      if (status.instance.instanceName !== instanceId) {
+        throw new Error("Instance ID mismatch");
       }
-
-      wid = wid || status?.wid || status?.widNumber;
     } catch (err) {
       this.logger.error(`Evolution API credentials invalid: ${err.message}`);
-      throw new HttpException("Invalid Evolution API credentials", HttpStatus.BAD_REQUEST);
+      throw new HttpException('Invalid Evolution API credentials', HttpStatus.BAD_REQUEST);
     }
-
+    
     const newInstance = await this.prisma.instance.create({
       data: {
-        idInstance: idInst,
+        idInstance: parseId(instanceId),
         apiTokenInstance: apiToken,
         userId,
-        name: name || `Evolution ${instanceId}`,
-        stateInstance: InstanceState.authorized,
-        settings: {
-          wid,
-        },
+        name: name || `Evolution ${instanceId.substring(0, 8)}`,
+        stateInstance: 'authorized', // Asumimos autorizado si la verificación fue exitosa
+        settings: {},
       },
     });
 
-    const webhookUrl = `${this.configService.get<string>("APP_URL")}/webhooks/evolution`;
-
+    // Configurar el webhook en Evolution API
+    const webhookUrl = `${this.configService.get<string>('APP_URL')}/webhooks/evolution`;
     try {
       await this.evolutionService.configureWebhooks(apiToken, webhookUrl);
-      this.logger.log("Evolution API webhooks configured");
+      this.logger.log(`Evolution API webhooks configured for instance ${instanceId}`);
     } catch (err) {
-      this.logger.error("Failed to configure Evolution API webhooks", err);
+      this.logger.error(`Failed to configure Evolution API webhooks for instance ${instanceId}`, err);
     }
 
-    this.logger.log(
-      `New Evolution API instance created for user ${userId}: ${instanceId}`,
-    );
-
+    this.logger.log(`New Evolution API instance created for user ${userId}: ${instanceId}`);
     return newInstance as unknown as Instance;
-  }
-
-  async handleStateWebhook(
-    instanceId: string,
-    newState: string,
-    wid?: string,
-  ): Promise<void> {
-    await this.updateInstanceState(instanceId, newState as InstanceState);
-
-    if (wid) {
-      const idInst = parseId(instanceId);
-      const instance = await this.prisma.instance.findUnique({
-        where: { idInstance: idInst },
-      });
-
-      const currentSettings = (instance?.settings || {}) as Record<string, any>;
-
-      if (instance && currentSettings.wid !== wid) {
-        await this.prisma.instance.update({
-          where: { idInstance: idInst },
-          data: {
-            settings: {
-              ...currentSettings,
-              wid,
-            },
-          },
-        });
-        this.logger.log(`Instance ${instanceId} WID updated to ${wid}`);
-      }
-    }
   }
 }
 
