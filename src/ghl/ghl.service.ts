@@ -15,7 +15,7 @@ import {
   IntegrationError,
 } from '../core/base-adapter';
 import { GhlTransformer } from './ghl.transformer';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, parseId } from '../prisma/prisma.service';
 import { EvolutionService } from '../evolution/evolution.service';
 import { GhlWebhookDto } from './dto/ghl-webhook.dto';
 import {
@@ -293,7 +293,7 @@ export class GhlService extends BaseAdapter<
   
   async handlePlatformWebhook(
     ghlWebhook: GhlWebhookDto,
-    instanceId: string | number,
+    instanceId: string,
   ): Promise<void> {
     try {
       const message: GhlPlatformMessage = {
@@ -307,7 +307,7 @@ export class GhlService extends BaseAdapter<
       };
 
       const inst = await this.prisma.instance.findUnique({
-        where: { idInstance: instanceId.toString() },
+        where: { idInstance: parseId(instanceId) },
       });
 
       if (!inst) {
@@ -330,7 +330,9 @@ export class GhlService extends BaseAdapter<
   }
 
   async handleEvolutionWebhook(webhook: EvolutionWebhook): Promise<void> {
-    const idInstance = webhook.instanceId?.toString();
+    const idInstance = webhook.instanceId
+      ? parseId(webhook.instanceId)
+      : undefined;
 
     const instance = await this.prisma.instance.findFirst({
       where: { idInstance },
@@ -360,12 +362,12 @@ export class GhlService extends BaseAdapter<
 // Parte 7 - Gestión de estado e instancias (crear, actualizar, manejar state webhooks)
 
   async updateInstanceState(
-    instanceId: string | number,
+    instanceId: string,
     newState: InstanceState | string,
   ): Promise<void> {
     try {
       await this.prisma.instance.update({
-        where: { idInstance: instanceId.toString() },
+        where: { idInstance: parseId(instanceId) },
         data: {
           stateInstance: newState as InstanceState,
         },
@@ -400,12 +402,12 @@ async verifyEvolutionInstance(instanceId: string, apiToken: string): Promise<boo
   
   async createEvolutionApiInstanceForUser(
     userId: string,
-    instanceId: string | number,
+    instanceId: string,
     apiToken: string,
     wid?: string,
     name?: string,
   ): Promise<Instance> {
-    const idInst = instanceId.toString();
+    const idInst = parseId(instanceId);
 
     const existing = await this.prisma.instance.findFirst({
       where: { idInstance: idInst },
@@ -460,14 +462,14 @@ async verifyEvolutionInstance(instanceId: string, apiToken: string): Promise<boo
   }
 
   async handleStateWebhook(
-    instanceId: string | number,
+    instanceId: string,
     newState: string,
     wid?: string,
   ): Promise<void> {
     await this.updateInstanceState(instanceId, newState as InstanceState);
 
     if (wid) {
-      const idInst = instanceId.toString();
+      const idInst = parseId(instanceId);
       const instance = await this.prisma.instance.findUnique({
         where: { idInstance: idInst },
       });

@@ -10,12 +10,12 @@ export interface StorageProvider<User, Instance, UserCreateData, UserUpdateData>
   getUserWithTokens(userId: string): Promise<User | null>;
   updateUserTokens(userId: string, accessToken: string, refreshToken: string, tokenExpiresAt: Date): Promise<User>;
   createInstance(data: any): Promise<Instance>;
-  getInstance(idInstance: string | number): Promise<Instance | null | (Instance & { user: User })>;
+  getInstance(idInstance: string): Promise<Instance | null | (Instance & { user: User })>;
   getInstancesByUserId(userId: string): Promise<Instance[]>;
-  removeInstance(idInstance: string | number): Promise<Instance>;
-  updateInstanceSettings(idInstance: string | number, settings: Settings): Promise<Instance>;
-  updateInstanceState(idInstance: string | number, state: any): Promise<Instance>;
-  updateInstanceName(idInstance: string | number, name: string): Promise<Instance & { user: User }>;
+  removeInstance(idInstance: string): Promise<Instance>;
+  updateInstanceSettings(idInstance: string, settings: Settings): Promise<Instance>;
+  updateInstanceState(idInstance: string, state: any): Promise<Instance>;
+  updateInstanceName(idInstance: string, name: string): Promise<Instance & { user: User }>;
 }
 
 import { Logger } from '@nestjs/common';

@@ -2,7 +2,7 @@ export interface EvolutionWebhook {
   type: "message" | "incomingCall" | string;
   timestamp: number;
   from?: string;
-  instanceId?: string | number;
+  instanceId?: string;
   messageData?: {
     idMessage: string;
     typeMessage: string;

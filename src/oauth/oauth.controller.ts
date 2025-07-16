@@ -136,48 +136,37 @@ export class GhlOauthController {
     }
   }
 
-  @Post('external-auth-credentials')
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async handleExternalAuthCredentials(
-    @Query('instance_id') queryInstanceId: string,
-    @Query('api_token_instance') queryApiToken: string,
-    @Query('locationId') queryLocationId: string,
-    @Body() body: GhlExternalAuthPayloadDto,
-  ): Promise<{ message: string }> {
-    const instanceId = queryInstanceId || body?.instance_id;
-    const apiToken = queryApiToken || body?.api_token_instance;
-    const locationId = queryLocationId || body?.locationId?.[0];
-
-
 @Post('external-auth-credentials')
 @HttpCode(HttpStatus.OK)
-async handleExternalAuthCredentials(@Body() data: GhlExternalAuthPayloadDto) {
-  if (!data.locationId || data.locationId.length === 0) {
+@UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+async handleExternalAuthCredentials(
+  @Query('instance_id') queryInstanceId: string,
+  @Query('api_token_instance') queryApiToken: string,
+  @Query('locationId') queryLocationId: string,
+  @Body() body: GhlExternalAuthPayloadDto,
+): Promise<{ message: string }> {
+  const instanceId = queryInstanceId || body?.instance_id;
+  const apiToken = queryApiToken || body?.api_token_instance;
+  const locationId = queryLocationId || body?.locationId?.[0];
+
+  if (!locationId) {
     throw new HttpException('locationId is missing', HttpStatus.BAD_REQUEST);
   }
-  if (!data.instance_id || !data.api_token_instance) {
+  if (!instanceId || !apiToken) {
     throw new HttpException('Missing Evolution API credentials', HttpStatus.BAD_REQUEST);
   }
 
-  const ghlUser = await this.prisma.findUser(data.locationId[0]);
-  if (!ghlUser) {
+  const user = await this.prisma.findUser(locationId);
+  if (!user) {
     throw new HttpException(
-      {
-        success: false,
-        message: 'OAuth step might have failed or been skipped.',
-      },
+      'OAuth step might have failed or been skipped.',
       HttpStatus.BAD_REQUEST,
     );
   }
 
-  await this.ghlService.createEvolutionApiInstanceForUser(
-    data.locationId[0],
-    data.instance_id,
-    data.api_token_instance,
-  );
+  await this.ghlService.createEvolutionApiInstanceForUser(locationId, instanceId, apiToken);
 
-  return { success: true, message: 'Evolution API instance connected successfully.' };
+  return { message: 'Evolution API instance connected successfully.' };
 }
 
 
