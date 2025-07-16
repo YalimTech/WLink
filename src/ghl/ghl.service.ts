@@ -289,6 +289,7 @@ export class GhlService extends BaseAdapter<
 
 
 
+
   // Parte 6 - Webhooks: desde GHL y desde Evolution API
 
     async handlePlatformWebhook(
