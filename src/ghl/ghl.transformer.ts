@@ -1,187 +1,88 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
-import { GhlPlatformMessage } from "../types";
-import { MessageTransformer, EvolutionApiMessage } from "../types/message.interface";
-import { EvolutionWebhook } from "../types/evolution-webhook.interface";
-import { extractPhoneNumberFromVCard } from "../../utils/format";
+import { Injectable, Logger } from '@nestjs/common';
+import { MessageTransformer } from '../core/base-adapter';
+import { GhlPlatformMessage, EvolutionWebhook } from '../types';
 
 @Injectable()
 export class GhlTransformer implements MessageTransformer<GhlPlatformMessage, EvolutionWebhook> {
   private readonly logger = new Logger(GhlTransformer.name);
 
+  /**
+   * Transforma un webhook entrante de Evolution API a un formato que GoHighLevel entiende.
+   * @param webhook El payload completo del webhook de Evolution API.
+   * @returns Un objeto GhlPlatformMessage listo para ser enviado a GHL.
+   */
   toPlatformMessage(webhook: EvolutionWebhook): GhlPlatformMessage {
-    this.logger.debug(`Transforming Evolution API webhook to GHL Platform Message: ${JSON.stringify(webhook)}`);
+    this.logger.debug(`Transforming Evolution webhook: ${JSON.stringify(webhook)}`);
 
-    let messageText = "";
-    const attachments: GhlPlatformMessage["attachments"] = [];
+    let messageText = 'Unsupported message type';
+    const attachments: GhlPlatformMessage['attachments'] = [];
+    const { data } = webhook;
 
-
-    if (webhook.type === "message") {
-      const isGroup = webhook.data?.from?.endsWith("@g.us") || false;
-      const senderName = webhook.data?.senderName || "Unknown";
-      const senderNumber = webhook.data?.from || "unknown";
-      const msgData = webhook.data?.message;
-      if (!msgData) {
-        this.logger.warn('Message data missing in Evolution webhook');
-        return {
-          contactId: 'unknown',
-          locationId: 'unknown',
-          message: '',
-          direction: 'inbound',
-        };
+    // Procesa el mensaje principal
+    if (data.message) {
+      if (data.message.conversation) {
+        messageText = data.message.conversation;
+      } else if (data.message.extendedTextMessage) {
+        messageText = data.message.extendedTextMessage.text;
       }
-
-      switch (msgData.type) {
-        case "text":
-          messageText = msgData.text?.body || "";
-          break;
-
-        case "image":
-        case "video":
-        case "document":
-        case "audio":
-          messageText = msgData.caption || `📎 ${msgData.type} received`;
-          if (msgData.url) {
-            attachments.push({
-              url: msgData.url,
-              fileName: msgData.filename || `${Date.now()}-${msgData.type}`,
-              type: msgData.mimetype || "application/octet-stream",
-            });
-          }
-          break;
-
-        case "sticker":
-          messageText = msgData.caption || "🟡 Sticker received";
-          if (msgData.url) {
-            attachments.push({
-              url: msgData.url,
-              fileName: msgData.filename || "sticker.webp",
-              type: msgData.mimetype || "image/webp",
-            });
-          }
-          break;
-        case "location":
-          const loc = msgData.location;
-          if (loc) {
-            messageText = [
-              "📍 Location shared:",
-              loc.name && `Name: ${loc.name}`,
-              loc.address && `Address: ${loc.address}`,
-              `Map: https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`,
-            ]
-              .filter(Boolean)
-              .join("\n");
-          }
-          break;
-
-        case "contact":
-          const contact = msgData.contact;
-          if (contact) {
-            const phone = extractPhoneNumberFromVCard(contact.vcard || "");
-            messageText = [
-              "👤 Contact shared:",
-              contact.displayName && `Name: ${contact.displayName}`,
-              phone && `Phone: ${phone}`,
-            ]
-              .filter(Boolean)
-              .join("\n");
-          }
-          break;
-
-        default:
-          this.logger.warn(`Unsupported message type from Evolution API: ${msgData.type}`);
-          messageText = "❔ Unsupported message type received.";
-      }
-
-      if (isGroup) {
-        messageText = `${senderName} (+${senderNumber.replace("@g.us", "")}):\n\n${messageText}`;
-      }
-
-      return {
-        contactId: "placeholder_ghl_contact_id",
-        locationId: "placeholder_ghl_location_id",
-        message: messageText.trim(),
-        direction: "inbound",
-        attachments: attachments.length > 0 ? attachments : undefined,
-        timestamp: new Date(webhook.timestamp),
-      };
+      // Aquí puedes añadir más lógica para otros tipos de mensaje (imagen, video, etc.)
+      // Por ejemplo, si hay un 'imageMessage', podrías procesar la URL y el caption.
     }
 
+    // Placeholder para el timestamp, ya que el tipo corregido lo requiere.
+    const timestamp = webhook.timestamp ? new Date(webhook.timestamp * 1000) : new Date();
 
-    if (webhook.type === "incomingCall") {
-      const caller = webhook.from?.replace("@c.us", "") || "unknown";
-      const status = webhook.call?.status || "unknown";
-
-      switch (status) {
-        case "offer":
-          messageText = `📞 Incoming call from ${caller}`;
-          break;
-        case "answered":
-          messageText = `✅ Call answered by ${caller}`;
-          break;
-        case "rejected":
-          messageText = `❌ Call rejected by ${caller}`;
-          break;
-        case "missed":
-          messageText = `🔕 Missed call from ${caller}`;
-          break;
-        default:
-          messageText = `📞 Call event from ${caller} - Status: ${status}`;
-      }
-
-      return {
-        contactId: "placeholder_ghl_contact_id",
-        locationId: "placeholder_ghl_location_id",
-        message: messageText,
-        direction: "inbound",
-        timestamp: new Date(webhook.timestamp),
-      };
-    }
-
-    this.logger.error(`Unsupported webhook type received from Evolution API: ${webhook.type}`);
-    return {
-      contactId: "error_contact_id",
-      locationId: "error_location_id",
-      message: `❌ Error: Unsupported webhook type '${webhook.type}' received.`,
-      direction: "inbound",
+    const platformMessage: GhlPlatformMessage = {
+      direction: 'inbound',
+      message: messageText.trim(),
+      attachments: attachments.length > 0 ? attachments : undefined,
+      timestamp,
+      // NOTA: Los campos `contactId` y `locationId` se añadirán en el ghl.service
+      // después de encontrar o crear el contacto en GHL.
     };
+
+    return platformMessage;
   }
 
+  /**
+   * Transforma un mensaje saliente de GoHighLevel a un formato que Evolution API entiende para enviarlo.
+   * @param message El objeto de mensaje de GHL.
+   * @returns Un objeto listo para ser enviado por el EvolutionService.
+   */
+  fromPlatformMessage(message: GhlPlatformMessage): any {
+    this.logger.debug(`Transforming GHL message to Evolution API format: ${JSON.stringify(message)}`);
 
-  toEvolutionApiMessage(ghlMessage: GhlPlatformMessage): EvolutionApiMessage {
-    this.logger.debug(`Transforming GHL Webhook to Evolution API Message: ${JSON.stringify(ghlMessage)}`);
-
-    if (ghlMessage.direction === "inbound" && ghlMessage.locationId) {
-      const isGroup = (ghlMessage.contactId || "").length > 16;
-      const chatId = isGroup
-        ? `${ghlMessage.contactId}@g.us`
-        : `${ghlMessage.contactId}@c.us`;
-      if (ghlMessage.attachments?.length) {
-        const fileUrl = ghlMessage.attachments[0].url || ghlMessage.attachments[0] as any;
-        return {
-          type: "url-file",
-          chatId,
-          file: {
-            url: fileUrl,
-            fileName: `${Date.now()}_file`,
-          },
-          caption: ghlMessage.message || "",
-        };
-      }
-
-      if (ghlMessage.message) {
-        return {
-          type: "text",
-          chatId,
-          message: ghlMessage.message,
-        };
-      }
-
-      this.logger.warn(`GHL message has neither text nor attachment for contact: ${ghlMessage.contactId}`);
-      throw new Error(`Empty GHL message for contact ${ghlMessage.contactId}`);
+    // Lógica para enviar archivos si existen
+    if (message.attachments && message.attachments.length > 0) {
+      const attachment = message.attachments[0];
+      return {
+        // Asume que el `phone` viene en el objeto `message` desde el `ghl.service`
+        phone: message.phone,
+        options: {
+          delay: 1200,
+          presence: 'composing',
+        },
+        media: {
+          url: attachment.url,
+          caption: message.message,
+        },
+      };
     }
-    this.logger.error(`Unsupported GHL message direction: ${ghlMessage.direction}`);
-    throw new Error(`Unsupported GHL message direction: ${ghlMessage.direction}`);
+
+    // Lógica para enviar solo texto
+    if (message.message) {
+      return {
+        phone: message.phone,
+        text: message.message,
+        options: {
+          delay: 1200,
+          presence: 'composing',
+        },
+      };
+    }
+
+    this.logger.warn('GHL message has neither text nor attachment. Cannot transform.');
+    throw new Error('Empty GHL message cannot be sent.');
   }
 }
 
