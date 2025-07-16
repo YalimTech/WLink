@@ -6,13 +6,14 @@ import {
   Body,
   HttpCode,
   Res,
+  Req,
   HttpException,
   HttpStatus,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { EvolutionApiLogger } from '../evolutionapi';
@@ -134,6 +135,7 @@ export class GhlOauthController {
       );
     }
   }
+
   @Post('external-auth-credentials')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
@@ -147,47 +149,42 @@ export class GhlOauthController {
     const apiToken = queryApiToken || body?.api_token_instance;
     const locationId = queryLocationId || body?.locationId?.[0];
 
-    this.logger.log(
-      `Received external auth credentials - instanceId: ${instanceId}, locationId: ${locationId}`,
-    );
 
-    if (!locationId) {
-      throw new HttpException('Missing locationId', HttpStatus.BAD_REQUEST);
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: locationId } });
-    if (!user) {
-      throw new HttpException(
-        'OAuth must be completed before submitting instance credentials.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    if (!instanceId || !apiToken) {
-      throw new HttpException('Missing instance credentials', HttpStatus.BAD_REQUEST);
-    }
-
-    try {
-      await this.authService.validateInstance(instanceId, apiToken);
-      await this.ghlService.createEvolutionApiInstanceForUser(
-        locationId,
-        instanceId,
-        apiToken,
-      );
-
-      this.logger.log(
-        `Validated and stored instance ${instanceId} for location ${locationId}`,
-      );
-
-      return {
-        message: 'Valid credentials',
-      };
-    } catch (err) {
-      this.logger.error(`Credential validation failed: ${err.message}`);
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
-    }
+@Post('external-auth-credentials')
+@HttpCode(HttpStatus.OK)
+async handleExternalAuthCredentials(@Body() data: GhlExternalAuthPayloadDto) {
+  if (!data.locationId || data.locationId.length === 0) {
+    throw new HttpException('locationId is missing', HttpStatus.BAD_REQUEST);
+  }
+  if (!data.instance_id || !data.api_token_instance) {
+    throw new HttpException('Missing Evolution API credentials', HttpStatus.BAD_REQUEST);
   }
 
+  const ghlUser = await this.prisma.findUser(data.locationId[0]);
+  if (!ghlUser) {
+    throw new HttpException(
+      {
+        success: false,
+        message: 'OAuth step might have failed or been skipped.',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
+  await this.ghlService.createEvolutionApiInstanceForUser(
+    data.locationId[0],
+    data.instance_id,
+    data.api_token_instance,
+  );
+
+  return { success: true, message: 'Evolution API instance connected successfully.' };
+}
+
+
+
+
+
+   
   @Post('external-auth-body')
   @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
@@ -196,15 +193,16 @@ export class GhlOauthController {
   ) {
     const instanceId = payload.instance_id;
     const apiToken = payload.api_token_instance;
-    // locationId can be provided either as an array or a single string
-    const locationId = payload.locationId?.[0] ?? (payload as any).locationId;
+    const locationId = Array.isArray(payload.locationId)
+      ? payload.locationId[0]
+      : payload.locationId;
 
     this.logger.log(
       `Received external auth via body - instanceId: ${instanceId}, locationId: ${locationId}`,
     );
 
-    if (!locationId) {
-      throw new HttpException('Missing locationId in body', HttpStatus.BAD_REQUEST);
+    if (!locationId || !instanceId || !apiToken) {
+      throw new HttpException('Missing required fields in body', HttpStatus.BAD_REQUEST);
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: locationId } });
@@ -213,10 +211,6 @@ export class GhlOauthController {
         'OAuth must be completed before submitting instance credentials.',
         HttpStatus.BAD_REQUEST,
       );
-    }
-
-    if (!instanceId || !apiToken) {
-      throw new HttpException('Missing instance credentials', HttpStatus.BAD_REQUEST);
     }
 
     try {
