@@ -356,6 +356,7 @@ export class GhlService extends BaseAdapter<
   }
   
 
+
 // Parte 7 - Gestión de estado e instancias (crear, actualizar, manejar state webhooks)
   
     async updateInstanceState(
