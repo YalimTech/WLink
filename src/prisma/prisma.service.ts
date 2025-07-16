@@ -3,6 +3,7 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { PrismaClient, Prisma, User, Instance, InstanceState } from '@prisma/client';
 import { StorageProvider, Settings } from '../evolutionapi';
+import { UserCreateData, UserUpdateData } from '../types';
 
 export function parseId(id: string | number | bigint): string {
   return id.toString();
@@ -10,9 +11,7 @@ export function parseId(id: string | number | bigint): string {
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, StorageProvider<User, Instance & { user: User }, UserCreateData, UserUpdateData> {
-  constructor(private readonly logger: Logger) {
-    super();
-  }
+  private readonly logger = new Logger(PrismaService.name);
 
   async onModuleInit() {
     await this.$connect();
@@ -21,7 +20,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, Storage
 
   // --- MÉTODOS DE USUARIO ---
   async createUser(data: UserCreateData): Promise<User> {
-    return this.user.upsert({ where: { id: data.id }, update: data, create: data });
+    return this.user.upsert({ where: { id: data.id as string }, update: data, create: data });
   }
 
   async findUser(id: string): Promise<User | null> {

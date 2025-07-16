@@ -62,14 +62,10 @@ export abstract class BaseEvolutionApiAuthGuard implements CanActivate {
   protected async validateRequest(request: Request): Promise<boolean> {
     const apiToken = request.headers['apikey'] as string;
     if (!apiToken) {
-      this.logger.warn('Missing API key');
+      this.logger.warn('Missing API key in request headers.');
       return false;
     }
-    // Lógica para validar el token si es necesario en el futuro
+    // Aquí se puede añadir lógica futura para validar el token si es necesario
     return true;
   }
 }
-
-// --- Logger Personalizado (si lo necesitas en el futuro) ---
-// Resuelve el error "has no exported member 'EvolutionApiLogger'"
-export class EvolutionApiLogger extends Logger {}
