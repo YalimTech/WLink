@@ -7,7 +7,7 @@ export { InstanceState } from '@prisma/client';
 export type User = PrismaUser;
 export type Instance = PrismaInstance;
 
-// --- DTOs (Data Transfer Objects) ---
+// --- DTOs (Data Transfer Objects) para las peticiones HTTP ---
 export interface CreateInstanceDto {
   locationId: string;
   instanceId: string;
@@ -18,7 +18,7 @@ export interface UpdateInstanceDto {
   name: string;
 }
 
-// --- Tipos de Prisma (Resuelve errores en prisma.service) ---
+// --- Tipos para la creación y actualización en Prisma ---
 export type UserCreateData = Prisma.UserCreateInput;
 export type UserUpdateData = Prisma.UserUpdateInput;
 
@@ -66,13 +66,12 @@ export interface MessageStatusPayload {
 export interface GhlPlatformMessage {
   contactId?: string;
   locationId: string;
+  phone?: string;
   message: string;
   direction: 'inbound' | 'outbound';
-  conversationProviderId?: string;
   attachments?: GhlPlatformAttachment[];
   timestamp?: Date;
 }
-// --- CORREGIDO: Resuelve errores de importación en ghl.service ---
 export interface GhlContactUpsertRequest {
   name?: string | null;
   locationId: string;
@@ -90,4 +89,3 @@ export interface GhlContact {
 export interface GhlContactUpsertResponse {
   contact: GhlContact;
 }
-
