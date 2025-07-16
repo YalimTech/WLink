@@ -1,5 +1,4 @@
 // src/evolution-api/evolution-api.service.ts
-
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
@@ -11,20 +10,23 @@ import { GhlWebhookDto } from './dto/ghl-webhook.dto';
 import { User, Instance, GhlPlatformMessage, EvolutionWebhook, GhlContact, GhlContactUpsertRequest, GhlContactUpsertResponse, MessageStatusPayload } from '../types';
 
 @Injectable()
-export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook, User, Instance> {
-  // --- CORREGIDO: El logger ahora es 'protected' para coincidir con la clase base ---
-  protected readonly logger = new Logger(EvolutionApiService.name);
-
+export class EvolutionApiService extends BaseAdapter<
+  GhlPlatformMessage,
+  EvolutionWebhook,
+  User,
+  Instance
+> {
   private readonly ghlApiBaseUrl = 'https://services.leadconnectorhq.com';
   private readonly ghlApiVersion = '2021-07-28';
-  
+
   constructor(
+    private readonly logger: Logger,
     protected readonly evolutionApiTransformer: EvolutionApiTransformer,
     protected readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly evolutionService: EvolutionService,
   ) {
-    super(evolutionApiTransformer, prisma);
+    super(evolutionApiTransformer, prisma, logger);
   }
 
   private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {
@@ -47,7 +49,14 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
       }
     }
 
-    const httpClient = axios.create({ baseURL: this.ghlApiBaseUrl, headers: { Authorization: `Bearer ${currentAccessToken}`, Version: this.ghlApiVersion, 'Content-Type': 'application/json' }});
+    const httpClient = axios.create({
+      baseURL: this.ghlApiBaseUrl,
+      headers: {
+        Authorization: `Bearer ${currentAccessToken}`,
+        Version: this.ghlApiVersion,
+        'Content-Type': 'application/json',
+      },
+    });
     return httpClient;
   }
 
@@ -59,8 +68,27 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
       refresh_token: refreshToken,
       user_type: 'Location',
     });
-    const response = await axios.post(`${this.ghlApiBaseUrl}/oauth/token`, body, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }});
+    const response = await axios.post(`${this.ghlApiBaseUrl}/oauth/token`, body, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
     return response.data;
+  }
+
+  /**
+   * Busca un contacto de GHL por su número de teléfono.
+   */
+  public async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact | null> {
+    const httpClient = await this.getHttpClient(locationId);
+    try {
+      const response = await httpClient.get(`/contacts/lookup?phone=${encodeURIComponent(phone)}`);
+      return response.data?.contacts?.[0] || null;
+    } catch (error) {
+      if ((error as AxiosError).response?.status === 404) {
+        return null;
+      }
+      this.logger.error(`Error fetching contact by phone in GHL: ${(error as AxiosError).message}`);
+      throw error;
+    }
   }
 
   private async findOrCreateGhlContact(locationId: string, phone: string, name: string, instanceId: string): Promise<GhlContact> {
@@ -87,7 +115,7 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
     const instance = await this.prisma.getInstance(instanceId);
     if (!instance) throw new NotFoundError(`Instance ${instanceId} not found`);
     if (instance.stateInstance !== 'authorized') throw new IntegrationError(`Instance ${instanceId} is not authorized`);
-    
+
     await this.evolutionService.sendMessage(instance.apiTokenInstance, ghlWebhook.phone, ghlWebhook.message);
     await this.updateGhlMessageStatus(ghlWebhook.locationId, ghlWebhook.messageId, 'delivered');
   }
@@ -95,7 +123,7 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
   public async handleEvolutionWebhook(webhook: EvolutionWebhook): Promise<void> {
     const instance = await this.prisma.getInstance(webhook.instance);
     if (!instance) throw new NotFoundError(`Webhook for unknown instance ${webhook.instance}.`);
-    
+
     if (webhook.event === 'messages.upsert' && webhook.data?.key?.remoteJid) {
       const { data } = webhook;
       const senderPhone = data.key.remoteJid.split('@')[0];
@@ -103,14 +131,14 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
 
       const ghlContact = await this.findOrCreateGhlContact(instance.userId, senderPhone, senderName, instance.idInstance);
 
-      const transformedMsg = this.ghlTransformer.toPlatformMessage(webhook);
+      const transformedMsg = this.transformer.toPlatformMessage(webhook);
       transformedMsg.contactId = ghlContact.id;
       transformedMsg.locationId = instance.userId;
 
       await this.postInboundMessageToGhl(instance.userId, transformedMsg);
     }
   }
-  
+
   public async createEvolutionApiInstanceForUser(userId: string, instanceId: string, apiToken: string, name?: string): Promise<Instance> {
     const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
     if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
@@ -118,22 +146,21 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
     try {
       const status = await this.evolutionService.getInstanceStatus(apiToken);
       if (status.instance.instanceName !== instanceId) {
-        throw new Error("Instance ID mismatch.");
+        throw new Error('Instance ID mismatch.');
       }
     } catch (err) {
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
-    
-    // --- CORREGIDO: La forma de crear la relación con el usuario en Prisma ---
+
     const newInstance = await this.prisma.createInstance({
-        idInstance: parseId(instanceId),
-        apiTokenInstance: apiToken,
-        user: { 
-          connect: { id: userId }
-        },
-        name: name || `Evolution ${instanceId.substring(0, 8)}`,
-        stateInstance: 'authorized',
-        settings: {},
+      idInstance: parseId(instanceId),
+      apiTokenInstance: apiToken,
+      user: {
+        connect: { id: userId },
+      },
+      name: name || `Evolution ${instanceId.substring(0, 8)}`,
+      stateInstance: 'authorized',
+      settings: {},
     });
 
     const webhookUrl = `${this.configService.get<string>('APP_URL')}/webhooks/evolution`;
@@ -145,12 +172,17 @@ export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, Evoluti
 
     return newInstance;
   }
-  
+
   // --- Métodos de apoyo (sin cambios) ---
-  public async updateGhlMessageStatus(locationId: string, messageId: string, status: 'delivered' | 'read' | 'failed' | 'sent', meta: Partial<MessageStatusPayload> = {}): Promise<void> {
+  public async updateGhlMessageStatus(
+    locationId: string,
+    messageId: string,
+    status: 'delivered' | 'read' | 'failed' | 'sent',
+    meta: Partial<MessageStatusPayload> = {},
+  ): Promise<void> {
     // ...
   }
-  
+
   private async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<void> {
     // ...
   }
