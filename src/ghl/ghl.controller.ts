@@ -14,7 +14,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GhlService } from './ghl.service';
-// Asegúrate de que los tipos se importen desde tu archivo central de tipos
 import { AuthReq, CreateInstanceDto, UpdateInstanceDto } from '../types';
 import { GhlContextGuard } from './guards/ghl-context.guard';
 
@@ -28,18 +27,16 @@ export class GhlController {
     private readonly ghlService: GhlService,
   ) {}
 
-  @Get() // Ruta simplificada para obtener instancias de la ubicación en contexto
+  @Get()
   async getInstances(@Req() req: AuthReq) {
     const { locationId } = req;
     this.logger.log(`Getting instances for location: ${locationId}`);
-
     const instances = await this.prisma.getInstancesByUserId(locationId);
-
     return {
       success: true,
       instances: instances.map((instance) => ({
-        id: instance.idInstance, // Usamos el ID de string
-        name: instance.name || `Instance ${instance.idInstance}`,
+        id: instance.idInstance,
+        name: instance.name,
         state: instance.stateInstance,
         createdAt: instance.createdAt,
       })),
@@ -49,30 +46,26 @@ export class GhlController {
   @Post()
   async createInstance(@Req() req: AuthReq, @Body() dto: CreateInstanceDto) {
     const { locationId } = req;
-    // La validación del locationId ya la hace el GhlContextGuard, pero una doble verificación es segura
-    if (locationId !== dto.locationId) {
-      throw new HttpException('Unauthorized: Mismatched location ID', HttpStatus.FORBIDDEN);
-    }
     this.logger.log(`Creating instance for location: ${locationId}`);
 
+    // La validación del DTO se puede hacer con Pipes de NestJS en el futuro
+    if (!dto.instanceId || !dto.apiToken) {
+        throw new HttpException('Instance ID and API Token are required', HttpStatus.BAD_REQUEST);
+    }
+    
+    // El GhlContextGuard ya asegura que el locationId es el correcto
+    dto.locationId = locationId;
+
     try {
-      // --- ESTA ES LA LLAMADA A LA FUNCIÓN CORREGIDA ---
-      // Se pasan 4 argumentos, como espera la función del servicio.
       const instance = await this.ghlService.createEvolutionApiInstanceForUser(
-        locationId,
+        dto.locationId,
         dto.instanceId,
         dto.apiToken,
-        dto.name, // El nombre es el cuarto argumento opcional.
+        dto.name,
       );
-
       return {
         success: true,
-        instance: {
-          id: instance.idInstance,
-          name: instance.name,
-          state: instance.stateInstance,
-          createdAt: instance.createdAt,
-        },
+        instance,
       };
     } catch (error) {
       this.logger.error(`Error creating instance: ${error.message}`, error.stack);
@@ -90,7 +83,7 @@ export class GhlController {
 
     const instance = await this.prisma.getInstance(instanceId);
     if (!instance || instance.userId !== locationId) {
-      throw new HttpException('Instance not found or unauthorized', HttpStatus.FORBIDDEN);
+      throw new HttpException('Instance not found or not authorized for this location', HttpStatus.FORBIDDEN);
     }
 
     await this.prisma.removeInstance(instanceId);
@@ -112,19 +105,15 @@ export class GhlController {
 
     const instance = await this.prisma.getInstance(instanceId);
     if (!instance || instance.userId !== locationId) {
-      throw new HttpException('Instance not found or unauthorized', HttpStatus.FORBIDDEN);
+      throw new HttpException('Instance not found or not authorized for this location', HttpStatus.FORBIDDEN);
     }
-
+    
+    // La llamada ahora es correcta porque 'updateInstanceName' ya existe en PrismaService.
     const updatedInstance = await this.prisma.updateInstanceName(instanceId, dto.name);
 
     return {
       success: true,
-      instance: {
-        id: updatedInstance.idInstance,
-        name: updatedInstance.name,
-        state: updatedInstance.stateInstance,
-        createdAt: updatedInstance.createdAt,
-      },
+      instance: updatedInstance,
     };
   }
 }
