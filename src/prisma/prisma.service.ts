@@ -16,7 +16,6 @@ import {
 
 
 function parseId(id: number | string | bigint): string {
-
   return typeof id === 'string' ? id : id.toString();
 }
 
