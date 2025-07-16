@@ -14,11 +14,9 @@ import {
   UserUpdateData,
 } from '../types';
 
-/**
- * Normalize numeric IDs to strings to match Prisma's schema.
- * Exported for use across the codebase.
- */
+
 export function parseId(id: string | number): string {
+
   return typeof id === 'string' ? id : id.toString();
 }
 
