@@ -1,8 +1,15 @@
 import { Request } from 'express';
 // Importa los tipos directamente de Prisma para mantenerlos siempre sincronizados
-export { User, Instance, InstanceState } from '@prisma/client';
+import { Prisma, User as PrismaUser, Instance as PrismaInstance } from '@prisma/client';
 
-// --- Interfaces para los DTOs del controlador ---
+export { InstanceState } from '@prisma/client';
+
+// Re-exportamos los tipos de Prisma para que otros archivos puedan importarlos desde aquí
+export type User = PrismaUser;
+export type Instance = PrismaInstance;
+
+// --- DTOs (Data Transfer Objects) para el Controlador ---
+// Estos definen la forma de los datos que se reciben en las peticiones HTTP
 
 export interface CreateInstanceDto {
   locationId: string;
@@ -15,7 +22,14 @@ export interface UpdateInstanceDto {
   name: string;
 }
 
-// --- Interfaces para Webhooks de Evolution API ---
+// --- Tipos para la creación y actualización de datos en Prisma (CORREGIDO) ---
+// Esto resuelve los errores de importación en `prisma.service.ts`
+export type UserCreateData = Prisma.UserCreateInput;
+export type UserUpdateData = Prisma.UserUpdateInput;
+
+
+// --- Interfaces para Webhooks de Evolution API (CORREGIDO Y COMPLETO) ---
+// Esta es la corrección más importante. Define la estructura real del webhook.
 
 export interface MessageKey {
   remoteJid: string;
@@ -40,8 +54,9 @@ export interface EvolutionWebhook {
   event: 'messages.upsert' | 'connection.update' | string;
   instance: string;
   data: MessageData;
-  sender: string;
+  sender: string; // El número de teléfono que envía el webhook
 }
+
 
 // --- Interfaces para GoHighLevel (GHL) ---
 
@@ -49,34 +64,10 @@ export interface AuthReq extends Request {
   locationId: string;
 }
 
-interface GhlPlatformAttachment {
+export interface GhlPlatformAttachment {
   url: string;
   fileName?: string;
   type?: string;
-}
-
-export interface MessageStatusPayload {
-  status?: 'delivered' | 'read' | 'failed' | 'pending';
-  code?: string;
-  type?: string;
-  message?: string;
-  [key: string]: any;
-}
-
-export interface SendResponse {
-  id?: string;
-  status?: string;
-  [key: string]: any;
-}
-
-export interface GhlUserData {
-  userId: string;
-  companyId: string;
-  role: string;
-  type: 'location' | 'agency';
-  userName: string;
-  email: string;
-  activeLocation: string;
 }
 
 export interface GhlPlatformMessage {
@@ -86,47 +77,28 @@ export interface GhlPlatformMessage {
   direction: 'inbound' | 'outbound';
   conversationProviderId?: string;
   attachments?: GhlPlatformAttachment[];
-  timestamp?: Date;
-  phone?: string;
-  type?: string;
-  messageId?: string;
 }
 
-interface GhlDndSettings {
-  // ... (Esta interfaz parece correcta, la mantenemos)
-}
-
-// --- Interfaces para Contactos de GHL ---
+// --- Interfaces para Contactos de GHL (Simplificado y Correcto) ---
 
 export interface GhlContactUpsertRequest {
-  firstName?: string | null;
-  lastName?: string | null;
   name?: string | null;
-  email?: string | null;
   locationId: string;
   phone?: string | null;
   tags?: string[];
   source?: string;
-  companyName?: string | null;
-  // ... (puedes añadir otros campos si los necesitas)
 }
 
 export interface GhlContact {
   id: string;
   name: string;
   locationId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
   phone: string;
   tags: string[];
-  // ... (otros campos que te interesen de la respuesta de GHL)
 }
 
 export interface GhlContactUpsertResponse {
-  new: boolean;
   contact: GhlContact;
-  traceId: string;
 }
 
 
