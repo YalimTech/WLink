@@ -1,8 +1,8 @@
 // src/core/base-adapter.ts
 
-import { MessageTransformer, StorageProvider } from '../evolutionapi'; // Asegúrate de que esta ruta sea correcta
+import { MessageTransformer, StorageProvider, NotFoundError, IntegrationError } from '../evolutionapi'; // Asegúrate de que la ruta a evolutionapi sea correcta
 
-export { StorageProvider }; // <--- ESTA LÍNEA RESUELVE EL ERROR DE EXPORTACIÓN
+export { MessageTransformer, StorageProvider, NotFoundError, IntegrationError };
 
 export abstract class BaseAdapter<T, U, V, W> {
   protected readonly logger;
