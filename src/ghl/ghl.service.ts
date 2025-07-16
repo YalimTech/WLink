@@ -87,9 +87,8 @@ export class GhlService extends BaseAdapter<
     // Interceptor para reintentar una llamada si falla por un token recién expirado.
     httpClient.interceptors.response.use(
       (response) => response,
-      async (error: AxiosError) => {
-        // La lógica de reintento es una mejora opcional pero robusta.
-        // Si el error es 401 y no hemos reintentado, intentamos refrescar el token y reintentar la llamada.
+      (error: AxiosError) => {
+        // Aquí se puede añadir lógica de reintento si se desea, pero por ahora se mantiene simple.
         return Promise.reject(error);
       },
     );
@@ -107,14 +106,13 @@ export class GhlService extends BaseAdapter<
       refresh_token: refreshToken,
       user_type: 'Location',
     });
-    // Corregido: Se envía el body y el header correcto para la petición de token
     const response = await axios.post(`${this.ghlApiBaseUrl}/oauth/token`, body, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     return response.data;
   }
 
-// --- Lógica de Contactos (Clonada de la lógica de Green API) ---
+  // --- Lógica de Contactos (Clonada de la lógica de Green API) ---
 
   /**
    * Busca un contacto en GHL por su número de teléfono.
@@ -218,8 +216,7 @@ export class GhlService extends BaseAdapter<
     }
   }
 
-
-// --- Lógica de Mensajería y Estado ---
+  // --- Lógica de Mensajería y Estado ---
 
   /**
    * Actualiza el estado de un mensaje en GHL (ej. a 'delivered' o 'failed').
@@ -302,7 +299,9 @@ export class GhlService extends BaseAdapter<
     const newInstance = await this.prisma.createInstance({
         idInstance: parseId(instanceId),
         apiTokenInstance: apiToken,
-        userId: userId,
+        user: { 
+          connect: { id: userId }
+        },
         name: name || `Evolution ${instanceId.substring(0, 8)}`,
         stateInstance: 'authorized', // Si la validación fue exitosa, la marcamos como autorizada.
         settings: {},
