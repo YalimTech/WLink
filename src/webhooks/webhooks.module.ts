@@ -1,12 +1,12 @@
 import { Module, Logger } from "@nestjs/common";
 import { ConfigModule } from '@nestjs/config';
 import { WebhooksController } from "./webhooks.controller";
-import { GhlModule } from "../ghl/ghl.module";
-import { EvolutionWebhookGuard } from './guards/evolution-webhook.guard';
+import { EvolutionApiModule } from "../evolution-api/evolution-api.module";
+import { EvolutionApiWebhookGuard } from './guards/evolution-api-webhook.guard';
 
 @Module({
-        imports: [ConfigModule, GhlModule],
+        imports: [ConfigModule, EvolutionApiModule],
         controllers: [WebhooksController],
-        providers: [EvolutionWebhookGuard, Logger],
+        providers: [EvolutionApiWebhookGuard, Logger],
 })
 export class WebhooksModule {}

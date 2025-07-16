@@ -13,17 +13,17 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { GhlService } from './ghl.service';
+import { EvolutionApiService } from './evolution-api.service';
 import { AuthReq, CreateInstanceDto, UpdateInstanceDto } from '../types';
 import { GhlContextGuard } from './guards/ghl-context.guard';
 
 @Controller('api/instances')
 @UseGuards(GhlContextGuard)
-export class GhlController {
+export class EvolutionApiController {
   constructor(
     private readonly logger: Logger,
     private readonly prisma: PrismaService,
-    private readonly ghlService: GhlService,
+    private readonly evolutionApiService: EvolutionApiService,
   ) {}
 
   @Get()
@@ -56,7 +56,7 @@ export class GhlController {
     dto.locationId = locationId;
 
     try {
-      const instance = await this.ghlService.createEvolutionApiInstanceForUser(
+      const instance = await this.evolutionApiService.createEvolutionApiInstanceForUser(
         dto.locationId,
         dto.instanceId,
         dto.apiToken,

@@ -16,11 +16,12 @@ CREATE TYPE "InstanceState" AS ENUM ('notAuthorized', 'authorized', 'yellowCard'
 -- CreateTable
 CREATE TABLE "Instance" (
     "id" BIGSERIAL NOT NULL,
-    "idInstance" BIGINT NOT NULL,
-    "apiTokenInstance" VARCHAR(191) NOT NULL,
+    "idInstance" TEXT NOT NULL,
+    "name" VARCHAR(191),
+    "apiTokenInstance" TEXT NOT NULL,
     "stateInstance" "InstanceState",
-    "userId" VARCHAR(191) NOT NULL,
-    "settings" JSONB,
+    "userId" UUID NOT NULL,
+    "settings" JSONB DEFAULT '{}',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Instance_pkey" PRIMARY KEY ("id")
@@ -30,7 +31,7 @@ CREATE TABLE "Instance" (
 CREATE UNIQUE INDEX "Instance_idInstance_key" ON "Instance"("idInstance");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Instance_userId_key" ON "Instance"("userId");
+CREATE INDEX "Instance_userId_idx" ON "Instance"("userId");
 
 -- AddForeignKey
 ALTER TABLE "Instance" ADD CONSTRAINT "Instance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

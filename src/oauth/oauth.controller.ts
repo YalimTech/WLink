@@ -19,7 +19,7 @@ import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { GhlOAuthCallbackDto } from './dto/ghl-oauth-callback.dto';
 import { GhlExternalAuthPayloadDto } from './dto/ghl-external-auth-payload.dto';
-import { GhlService } from '../ghl/ghl.service';
+import { EvolutionApiService } from '../evolution-api/evolution-api.service';
 
 @Controller('oauth')
 export class GhlOauthController {
@@ -29,7 +29,7 @@ export class GhlOauthController {
     private readonly logger: Logger,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly ghlService: GhlService,
+    private readonly evolutionApiService: EvolutionApiService,
   ) {}
 
   @Get('callback')
@@ -109,7 +109,7 @@ export class GhlOauthController {
 
       if (idInstance && apiTokenInstance) {
         try {
-          await this.ghlService.createEvolutionApiInstanceForUser(
+          await this.evolutionApiService.createEvolutionApiInstanceForUser(
             respLocationId,
             idInstance,
             apiTokenInstance,
@@ -162,7 +162,7 @@ async handleExternalAuthCredentials(
     );
   }
 
-  await this.ghlService.createEvolutionApiInstanceForUser(locationId, instanceId, apiToken);
+  await this.evolutionApiService.createEvolutionApiInstanceForUser(locationId, instanceId, apiToken);
 
   return { message: 'Evolution API instance connected successfully.' };
 }
@@ -201,7 +201,7 @@ async handleExternalAuthCredentials(
     }
 
     try {
-      await this.ghlService.createEvolutionApiInstanceForUser(
+      await this.evolutionApiService.createEvolutionApiInstanceForUser(
         locationId,
         instanceId,
         apiToken,

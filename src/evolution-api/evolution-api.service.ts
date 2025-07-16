@@ -1,30 +1,34 @@
-// src/ghl/ghl.service.ts
+// src/evolution-api/evolution-api.service.ts
 
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { BaseAdapter, NotFoundError, IntegrationError } from '../core/base-adapter';
-import { GhlTransformer } from './ghl.transformer';
+import { EvolutionApiTransformer } from './evolution-api.transformer';
 import { PrismaService, parseId } from '../prisma/prisma.service';
 import { EvolutionService } from '../evolution/evolution.service';
 import { GhlWebhookDto } from './dto/ghl-webhook.dto';
 import { User, Instance, GhlPlatformMessage, EvolutionWebhook, GhlContact, GhlContactUpsertRequest, GhlContactUpsertResponse, MessageStatusPayload } from '../types';
 
 @Injectable()
-export class GhlService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook, User, Instance> {
-  // --- CORREGIDO: El logger ahora es 'protected' para coincidir con la clase base ---
-  protected readonly logger = new Logger(GhlService.name);
+export class EvolutionApiService extends BaseAdapter<
+  GhlPlatformMessage,
+  EvolutionWebhook,
+  User,
+  Instance
+> {
 
   private readonly ghlApiBaseUrl = 'https://services.leadconnectorhq.com';
   private readonly ghlApiVersion = '2021-07-28';
   
   constructor(
-    protected readonly ghlTransformer: GhlTransformer,
+    private readonly logger: Logger,
+    protected readonly evolutionApiTransformer: EvolutionApiTransformer,
     protected readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly evolutionService: EvolutionService,
   ) {
-    super(ghlTransformer, prisma);
+    super(evolutionApiTransformer, prisma, logger);
   }
 
   private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {
@@ -61,6 +65,23 @@ export class GhlService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook
     });
     const response = await axios.post(`${this.ghlApiBaseUrl}/oauth/token`, body, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }});
     return response.data;
+  }
+
+  /**
+   * Busca un contacto de GHL por su número de teléfono.
+   */
+  public async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact | null> {
+    const httpClient = await this.getHttpClient(locationId);
+    try {
+      const response = await httpClient.get(`/contacts/lookup?phone=${encodeURIComponent(phone)}`);
+      return response.data?.contacts?.[0] || null;
+    } catch (error) {
+      if ((error as AxiosError).response?.status === 404) {
+        return null;
+      }
+      this.logger.error(`Error fetching contact by phone in GHL: ${(error as AxiosError).message}`);
+      throw error;
+    }
   }
 
   private async findOrCreateGhlContact(locationId: string, phone: string, name: string, instanceId: string): Promise<GhlContact> {
@@ -103,7 +124,7 @@ export class GhlService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook
 
       const ghlContact = await this.findOrCreateGhlContact(instance.userId, senderPhone, senderName, instance.idInstance);
 
-      const transformedMsg = this.ghlTransformer.toPlatformMessage(webhook);
+      const transformedMsg = this.transformer.toPlatformMessage(webhook);
       transformedMsg.contactId = ghlContact.id;
       transformedMsg.locationId = instance.userId;
 
