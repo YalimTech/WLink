@@ -1,14 +1,23 @@
-import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import axios, { AxiosInstance, AxiosError } from "axios";
-import { HttpService } from "@nestjs/axios";
-import { firstValueFrom } from "rxjs";
-import { BaseAdapter, NotFoundError, IntegrationError } from "../core/base-adapter";
-import { GhlTransformer } from "./ghl.transformer";
-import { PrismaService } from "../prisma/prisma.service";
-import { EvolutionService } from "../evolution/evolution.service";
-import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
-import { randomBytes } from "crypto";
+// Parte 1 - Importaciones y definición inicial de la clase
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import {
+  BaseAdapter,
+  NotFoundError,
+  IntegrationError,
+} from '../core/base-adapter';
+import { GhlTransformer } from './ghl.transformer';
+import { PrismaService } from '../prisma/prisma.service';
+import { EvolutionService } from '../evolution/evolution.service';
+import { GhlWebhookDto } from './dto/ghl-webhook.dto';
 import {
   GhlContact,
   GhlContactUpsertRequest,
@@ -18,8 +27,8 @@ import {
   User,
   Instance,
   InstanceState,
-} from "../types";
-import { EvolutionWebhook } from "../types/evolution-webhook.interface";
+} from '../types';
+import { EvolutionWebhook } from '../types/evolution-webhook.interface';
 
 @Injectable()
 export class GhlService extends BaseAdapter<
@@ -28,9 +37,8 @@ export class GhlService extends BaseAdapter<
   User,
   Instance
 > {
-  // BaseAdapter already defines a protected logger. Reuse it for consistency.
-  private readonly ghlApiBaseUrl = "https://services.leadconnectorhq.com";
-  private readonly ghlApiVersion = "2021-07-28";
+  private readonly ghlApiBaseUrl = 'https://services.leadconnectorhq.com';
+  private readonly ghlApiVersion = '2021-07-28';
 
   constructor(
     protected readonly ghlTransformer: GhlTransformer,
@@ -41,9 +49,16 @@ export class GhlService extends BaseAdapter<
     super(ghlTransformer, prisma);
   }
 
-  private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {
+
+  // Parte 2 - Método getHttpClient (gestión de tokens y cliente Axios con retry)
+  
+    private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {
     const userWithTokens = await this.prisma.getUserWithTokens(ghlUserId);
-    if (!userWithTokens || !userWithTokens.accessToken || !userWithTokens.refreshToken) {
+    if (
+      !userWithTokens ||
+      !userWithTokens.accessToken ||
+      !userWithTokens.refreshToken
+    ) {
       this.logger.error(`No tokens found for GHL User (Location ID): ${ghlUserId}`);
       throw new HttpException(
         `GHL auth tokens not found for User ${ghlUserId}. Re-authorize.`,
@@ -83,7 +98,7 @@ export class GhlService extends BaseAdapter<
       headers: {
         Authorization: `Bearer ${currentAccessToken}`,
         Version: this.ghlApiVersion,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     });
 
@@ -100,9 +115,9 @@ export class GhlService extends BaseAdapter<
         if (
           error.response?.status === 401 &&
           originalRequest &&
-          !originalRequest.headers["_retry"]
+          !originalRequest.headers['_retry']
         ) {
-          originalRequest.headers["_retry"] = true;
+          originalRequest.headers['_retry'] = true;
           try {
             const newTokens = await this.refreshGhlAccessToken(userForRetry.refreshToken);
             await this.prisma.updateUserTokens(
@@ -111,7 +126,7 @@ export class GhlService extends BaseAdapter<
               newTokens.refresh_token,
               new Date(Date.now() + newTokens.expires_in * 1000),
             );
-            originalRequest.headers["Authorization"] = `Bearer ${newTokens.access_token}`;
+            originalRequest.headers['Authorization'] = `Bearer ${newTokens.access_token}`;
             return httpClient(originalRequest);
           } catch (refreshError) {
             this.logger.error(`Retry token refresh failed: ${refreshError.message}`);
@@ -128,7 +143,7 @@ export class GhlService extends BaseAdapter<
           `GHL API error [${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}] - ${status}: ${JSON.stringify(data)}`,
         );
         throw new HttpException(
-          (data as any)?.message || "GHL API request failed",
+          (data as any)?.message || 'GHL API request failed',
           status || HttpStatus.INTERNAL_SERVER_ERROR,
         );
       },
@@ -142,11 +157,11 @@ export class GhlService extends BaseAdapter<
     refresh_token: string;
     expires_in: number;
   }> {
-    const clientId = this.configService.get<string>("GHL_CLIENT_ID");
-    const clientSecret = this.configService.get<string>("GHL_CLIENT_SECRET");
+    const clientId = this.configService.get<string>('GHL_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GHL_CLIENT_SECRET');
 
-    const response = await axios.post("https://services.leadconnectorhq.com/oauth/token", {
-      grant_type: "refresh_token",
+    const response = await axios.post('https://services.leadconnectorhq.com/oauth/token', {
+      grant_type: 'refresh_token',
       client_id: clientId,
       client_secret: clientSecret,
       refresh_token: refreshToken,
@@ -155,7 +170,9 @@ export class GhlService extends BaseAdapter<
     return response.data;
   }
 
-  async findOrCreateGhlContact(locationId: string, phone: string): Promise<GhlContact> {
+  // Parte 3 - Método refreshGhlAccessToken (renovación de tokens GHL)
+  
+    async findOrCreateGhlContact(locationId: string, phone: string): Promise<GhlContact> {
     try {
       const httpClient = await this.getHttpClient(locationId);
       const response = await httpClient.get(`/contacts/lookup?phone=${phone}`);
@@ -167,16 +184,13 @@ export class GhlService extends BaseAdapter<
         contact: {
           phone,
           name: `User ${phone.slice(-4)}`,
-          tags: ["whatsapp-created"],
+          tags: ['whatsapp-created'],
           customField: {},
         },
       };
 
       const httpClient = await this.getHttpClient(locationId);
-      const createResponse = await httpClient.post(
-        "/contacts/upsert",
-        contactPayload,
-      );
+      const createResponse = await httpClient.post('/contacts/upsert', contactPayload);
       return createResponse.data.contact;
     }
   }
@@ -196,10 +210,14 @@ export class GhlService extends BaseAdapter<
     return this.findOrCreateGhlContact(locationId, phone);
   }
 
-  async updateGhlMessageStatus(
+
+
+  // Parte 4 - Gestión de contactos GHL (findOrCreate, getById, getByPhone)
+
+    async updateGhlMessageStatus(
     locationId: string,
     messageId: string,
-    status: "sent" | "delivered" | "read" | "failed",
+    status: 'sent' | 'delivered' | 'read' | 'failed',
     meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
     try {
@@ -217,15 +235,15 @@ export class GhlService extends BaseAdapter<
   async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<SendResponse> {
     const httpClient = await this.getHttpClient(locationId);
     try {
-      const response = await httpClient.post("/conversations/messages/inbound", message);
+      const response = await httpClient.post('/conversations/messages/inbound', message);
       return response.data as SendResponse;
     } catch (error) {
       this.logger.error(`Failed to post inbound message to GHL: ${error.message}`);
-      throw new IntegrationError("Failed to post inbound message to GHL");
+      throw new IntegrationError('Failed to post inbound message to GHL');
     }
   }
 
-  // Alias for compatibility
+  // Alias para compatibilidad
   async sendInboundMessageToGhl(payload: {
     locationId: string;
     message: GhlPlatformMessage;
@@ -233,7 +251,10 @@ export class GhlService extends BaseAdapter<
     return this.postInboundMessageToGhl(payload.locationId, payload.message);
   }
 
-  async createPlatformClient(locationId: string): Promise<HttpService> {
+
+  // Parte 5 - Estado y mensajes (updateMessageStatus, inbound message, envío general)
+
+    async createPlatformClient(locationId: string): Promise<HttpService> {
     const accessToken = await this.getAccessToken(locationId);
     return new HttpService(
       axios.create({
@@ -266,6 +287,10 @@ export class GhlService extends BaseAdapter<
     return sorted[0];
   }
 
+
+  
+    // Parte 6 - Webhooks: desde GHL y desde Evolution API
+  
   async handlePlatformWebhook(
     ghlWebhook: GhlWebhookDto,
     instanceId: string | number,
@@ -329,6 +354,10 @@ export class GhlService extends BaseAdapter<
 
     await this.postInboundMessageToGhl(locationId, inbound);
   }
+  
+
+
+// Parte 7 - Gestión de estado e instancias (crear, actualizar, manejar state webhooks)
 
   async updateInstanceState(
     instanceId: string | number,
@@ -346,7 +375,29 @@ export class GhlService extends BaseAdapter<
       this.logger.error(`Failed to update state of instance ${instanceId}: ${error.message}`);
     }
   }
+  
+async verifyEvolutionInstance(instanceId: string, apiToken: string): Promise<boolean> {
+  try {
+    const status = await this.evolutionService.getInstanceStatus(apiToken);
+    const returnedId =
+      status?.idInstance || status?.instanceId || status?.instance_id;
 
+    if (!returnedId || returnedId.toString() !== instanceId.toString()) {
+      this.logger.warn(`Instance ID mismatch: expected ${instanceId}, got ${returnedId}`);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    this.logger.error(`Failed to verify Evolution API instance: ${err.message}`);
+    return false;
+  }
+}
+
+
+  // Verifica que las credenciales proporcionadas (instanceId y apiToken) sean válidas consultando el estado de la instancia en Evolution API
+
+  
   async createEvolutionApiInstanceForUser(
     userId: string,
     instanceId: string | number,
@@ -362,7 +413,6 @@ export class GhlService extends BaseAdapter<
 
     if (existing) {
       this.logger.warn(`Instance ${instanceId} already exists. Skipping creation.`);
-      // Cast to the shared Instance interface for compatibility with callers
       return existing as unknown as Instance;
     }
 
@@ -406,8 +456,6 @@ export class GhlService extends BaseAdapter<
       `New Evolution API instance created for user ${userId}: ${instanceId}`,
     );
 
-    // Prisma types use their own enum definition for `InstanceState`. Cast to
-    // the local Instance interface to satisfy the compiler.
     return newInstance as unknown as Instance;
   }
 
@@ -441,3 +489,4 @@ export class GhlService extends BaseAdapter<
     }
   }
 }
+
