@@ -12,8 +12,7 @@ import { User, Instance, GhlPlatformMessage, EvolutionWebhook, GhlContact, GhlCo
 
 @Injectable()
 export class GhlService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook, User, Instance> {
-  // --- CORREGIDO: El logger ahora es 'protected' para coincidir con la clase base ---
-  protected readonly logger = new Logger(GhlService.name);
+  // El logger ya no se declara aquí, es heredado y manejado por BaseAdapter.
 
   private readonly ghlApiBaseUrl = 'https://services.leadconnectorhq.com';
   private readonly ghlApiVersion = '2021-07-28';
@@ -61,6 +60,19 @@ export class GhlService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook
     });
     const response = await axios.post(`${this.ghlApiBaseUrl}/oauth/token`, body, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }});
     return response.data;
+  }
+
+  // --- CORREGIDO: Este método ahora es 'public' para ser accesible desde otros archivos. ---
+  public async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact | null> {
+    const httpClient = await this.getHttpClient(locationId);
+    try {
+      const response = await httpClient.get(`/contacts/lookup?phone=${encodeURIComponent(phone)}`);
+      return (response.data?.contacts?.[0]) || null;
+    } catch (error) {
+      if ((error as AxiosError).response?.status === 404) return null;
+      this.logger.error(`Error fetching contact by phone in GHL: ${error.message}`);
+      throw error;
+    }
   }
 
   private async findOrCreateGhlContact(locationId: string, phone: string, name: string, instanceId: string): Promise<GhlContact> {
