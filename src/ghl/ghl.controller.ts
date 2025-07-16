@@ -1,185 +1,130 @@
 import {
-	Controller,
-	Get,
-	Post,
-	Delete,
-	Patch,
-	Body,
-	Param,
-	HttpException,
-	HttpStatus,
-	Req,
-	UseGuards,
-	Logger,
-} from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
-import { GhlService } from "./ghl.service";
-import { AuthReq } from "../types";
-import { GhlContextGuard } from "./guards/ghl-context.guard";
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Patch,
+  Body,
+  Param,
+  HttpException,
+  HttpStatus,
+  Req,
+  UseGuards,
+  Logger,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { GhlService } from './ghl.service';
+// Asegúrate de que los tipos se importen desde tu archivo central de tipos
+import { AuthReq, CreateInstanceDto, UpdateInstanceDto } from '../types';
+import { GhlContextGuard } from './guards/ghl-context.guard';
 
-interface CreateInstanceDto {
-	locationId: string;
-	instanceId: string;
-	apiToken: string;
-	name?: string;
-}
-
-interface UpdateInstanceDto {
-	name?: string;
-}
-
-@Controller("api/instances")
+@Controller('api/instances')
 @UseGuards(GhlContextGuard)
 export class GhlController {
-	private readonly logger = new Logger(GhlController.name);
+  private readonly logger = new Logger(GhlController.name);
 
-	constructor(
-		private readonly prisma: PrismaService,
-		private readonly ghlService: GhlService,
-	) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ghlService: GhlService,
+  ) {}
 
-	@Get(":locationId")
-	async getInstances(@Param("locationId") locationId: string, @Req() req: AuthReq) {
-		if (req.locationId !== locationId) {
-			throw new HttpException("Unauthorized", HttpStatus.FORBIDDEN);
-		}
-		this.logger.log(`Getting instances for location: ${locationId}`);
+  @Get() // Ruta simplificada para obtener instancias de la ubicación en contexto
+  async getInstances(@Req() req: AuthReq) {
+    const { locationId } = req;
+    this.logger.log(`Getting instances for location: ${locationId}`);
 
-		const user = await this.prisma.findUser(locationId);
-		if (!user) {
-			throw new HttpException("Location not found", HttpStatus.NOT_FOUND);
-		}
+    const instances = await this.prisma.getInstancesByUserId(locationId);
 
-		const instances = await this.prisma.getInstancesByUserId(locationId);
+    return {
+      success: true,
+      instances: instances.map((instance) => ({
+        id: instance.idInstance, // Usamos el ID de string
+        name: instance.name || `Instance ${instance.idInstance}`,
+        state: instance.stateInstance,
+        createdAt: instance.createdAt,
+      })),
+    };
+  }
 
-		return {
-			success: true,
-			instances: instances.map(instance => ({
-				id: instance.idInstance.toString(),
-				name: instance.name || `Instance ${instance.idInstance}`,
-				state: instance.stateInstance,
-				createdAt: instance.createdAt,
-				settings: instance.settings,
-			})),
-		};
-	}
+  @Post()
+  async createInstance(@Req() req: AuthReq, @Body() dto: CreateInstanceDto) {
+    const { locationId } = req;
+    // La validación del locationId ya la hace el GhlContextGuard, pero una doble verificación es segura
+    if (locationId !== dto.locationId) {
+      throw new HttpException('Unauthorized: Mismatched location ID', HttpStatus.FORBIDDEN);
+    }
+    this.logger.log(`Creating instance for location: ${locationId}`);
 
+    try {
+      // --- ESTA ES LA LLAMADA A LA FUNCIÓN CORREGIDA ---
+      // Se pasan 4 argumentos, como espera la función del servicio.
+      const instance = await this.ghlService.createEvolutionApiInstanceForUser(
+        locationId,
+        dto.instanceId,
+        dto.apiToken,
+        dto.name, // El nombre es el cuarto argumento opcional.
+      );
 
-	@Post()
-	async createInstance(@Body() dto: CreateInstanceDto, @Req() req: AuthReq) {
-		if (req.locationId !== dto.locationId) {
-			throw new HttpException("Unauthorized", HttpStatus.FORBIDDEN);
-		}
-		this.logger.log(`Creating instance for location: ${dto.locationId}`);
+      return {
+        success: true,
+        instance: {
+          id: instance.idInstance,
+          name: instance.name,
+          state: instance.stateInstance,
+          createdAt: instance.createdAt,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error creating instance: ${error.message}`, error.stack);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to create instance', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 
-		const user = await this.prisma.findUser(dto.locationId);
-		if (!user) {
-			throw new HttpException("Location not found. Please ensure OAuth is completed.", HttpStatus.BAD_REQUEST);
-		}
+  @Delete(':instanceId')
+  async deleteInstance(@Param('instanceId') instanceId: string, @Req() req: AuthReq) {
+    const { locationId } = req;
+    this.logger.log(`Attempting to delete instance: ${instanceId} for location: ${locationId}`);
 
-		if (!user.accessToken || !user.refreshToken) {
-			throw new HttpException("OAuth authentication required", HttpStatus.UNAUTHORIZED);
-		}
+    const instance = await this.prisma.getInstance(instanceId);
+    if (!instance || instance.userId !== locationId) {
+      throw new HttpException('Instance not found or unauthorized', HttpStatus.FORBIDDEN);
+    }
 
-		try {
-        const instance = await this.ghlService.createEvolutionApiInstanceForUser(
-                                dto.locationId,
-                                dto.instanceId,
-                                dto.apiToken,
-                                undefined,
-                                dto.name,
-                        );
+    await this.prisma.removeInstance(instanceId);
 
-			return {
-				success: true,
-				instance: {
-					id: instance.idInstance.toString(),
-					name: instance.name || `Instance ${instance.idInstance}`,
-					state: instance.stateInstance,
-					createdAt: instance.createdAt,
-				},
-			};
-		} catch (error) {
-			this.logger.error(`Error creating instance: ${error.message}`, error.stack);
+    return {
+      success: true,
+      message: 'Instance deleted successfully',
+    };
+  }
 
-			if (error.message.includes("already exists")) {
-				throw new HttpException("Instance ID already exists", HttpStatus.CONFLICT);
-			}
+  @Patch(':instanceId')
+  async updateInstance(
+    @Param('instanceId') instanceId: string,
+    @Body() dto: UpdateInstanceDto,
+    @Req() req: AuthReq,
+  ) {
+    const { locationId } = req;
+    this.logger.log(`Updating instance: ${instanceId}`);
 
-			if (error.code === "INVALID_CREDENTIALS") {
-				throw new HttpException("Invalid Evolution API credentials", HttpStatus.BAD_REQUEST);
-			}
+    const instance = await this.prisma.getInstance(instanceId);
+    if (!instance || instance.userId !== locationId) {
+      throw new HttpException('Instance not found or unauthorized', HttpStatus.FORBIDDEN);
+    }
 
-			throw new HttpException(
-				error.message || "Failed to create instance",
-				HttpStatus.INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
+    const updatedInstance = await this.prisma.updateInstanceName(instanceId, dto.name);
 
-
-	@Delete(":instanceId")
-	async deleteInstance(@Param("instanceId") instanceId: string, @Req() req: AuthReq) {
-        const instance = await this.prisma.getInstance(instanceId);
-		if (!instance || (instance.userId !== req.locationId)) {
-			throw new HttpException("Unauthorized", HttpStatus.FORBIDDEN);
-		}
-		this.logger.log(`Deleting instance: ${instanceId}`);
-
-		try {
-                    await this.prisma.removeInstance(instanceId);
-
-			return {
-				success: true,
-				message: "Instance deleted successfully",
-			};
-		} catch (error) {
-			if (error instanceof HttpException) {
-				throw error;
-			}
-
-			this.logger.error(`Error deleting instance: ${error.message}`, error.stack);
-			throw new HttpException(
-				"Failed to delete instance",
-				HttpStatus.INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-	@Patch(":instanceId")
-	async updateInstance(
-		@Param("instanceId") instanceId: string,
-		@Body() dto: UpdateInstanceDto,
-	) {
-		this.logger.log(`Updating instance: ${instanceId}`);
-		try {
-                        let instance = await this.prisma.getInstance(instanceId);
-			if (!instance) {
-				throw new HttpException("Instance not found", HttpStatus.NOT_FOUND);
-			}
-			if (dto.name) {
-                                instance = await this.prisma.updateInstanceName(instanceId, dto.name);
-			}
-
-			return {
-				success: true,
-				instance: {
-					id: instance.idInstance.toString(),
-					name: instance.name || `Instance ${instance.idInstance}`,
-					state: instance.stateInstance,
-					createdAt: instance.createdAt,
-				},
-			};
-		} catch (error) {
-			if (error instanceof HttpException) {
-				throw error;
-			}
-
-			this.logger.error(`Error updating instance: ${error.message}`, error.stack);
-			throw new HttpException(
-				"Failed to update instance",
-				HttpStatus.INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
+    return {
+      success: true,
+      instance: {
+        id: updatedInstance.idInstance,
+        name: updatedInstance.name,
+        state: updatedInstance.stateInstance,
+        createdAt: updatedInstance.createdAt,
+      },
+    };
+  }
 }
