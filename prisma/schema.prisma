@@ -35,7 +35,7 @@ model Instance {
   name             String?
   apiTokenInstance String         @db.Text
   stateInstance    InstanceState?
-  userId           String         @db.Uuid // Asegúrate que el tipo coincida con User.id
+  userId           String         @db.Uuid 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   settings         Json?          @default("{}") @db.Json
   createdAt        DateTime       @default(now())
