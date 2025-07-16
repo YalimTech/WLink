@@ -14,7 +14,9 @@ import {
   UserUpdateData,
 } from '../types';
 
-function parseId(id: string | number): string {
+
+export function parseId(id: string | number): string {
+
   return typeof id === 'string' ? id : id.toString();
 }
 

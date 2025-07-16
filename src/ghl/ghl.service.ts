@@ -287,11 +287,11 @@ export class GhlService extends BaseAdapter<
     return sorted[0];
   }
 
+  
+    // Parte 6 - Webhooks: desde GHL y desde Evolution API
+  
+  async handlePlatformWebhook(
 
-
-  // Parte 6 - Webhooks: desde GHL y desde Evolution API
-
-    async handlePlatformWebhook(
     ghlWebhook: GhlWebhookDto,
     instanceId: string | number,
   ): Promise<void> {
@@ -356,9 +356,10 @@ export class GhlService extends BaseAdapter<
   }
   
 
+
 // Parte 7 - Gestión de estado e instancias (crear, actualizar, manejar state webhooks)
-  
-    async updateInstanceState(
+
+  async updateInstanceState(
     instanceId: string | number,
     newState: InstanceState | string,
   ): Promise<void> {
