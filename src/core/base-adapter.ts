@@ -1,26 +1,16 @@
-import { Logger } from '@nestjs/common';
-import { MessageTransformer } from '../types/message.interface';
-import { StorageProvider } from '../evolutionapi';
+// src/core/base-adapter.ts
 
-export class IntegrationError extends Error {}
-export class NotFoundError extends Error {}
+import { MessageTransformer, StorageProvider } from '../evolutionapi'; // Asegúrate de que esta ruta sea correcta
 
-export abstract class BaseAdapter<WebhookPayload, PlatformMessage, User, Instance> {
-  protected readonly logger = new Logger(this.constructor.name);
+export { StorageProvider }; // <--- ESTA LÍNEA RESUELVE EL ERROR DE EXPORTACIÓN
 
-  protected evolution = {
-    async sendMessage(_instanceId: string, _message: any): Promise<void> {
-      // stub method
-    },
-  };
+export abstract class BaseAdapter<T, U, V, W> {
+  protected readonly logger;
 
-  protected constructor(
-    protected readonly transformer: MessageTransformer<WebhookPayload, PlatformMessage>,
-    protected readonly storageService: StorageProvider<User, Instance, any, any>,
-  ) {}
-
-  protected async getAccessToken(_userId: string): Promise<string> {
-    const user: any = await this.storageService.getUserWithTokens(_userId as any);
-    return (user && (user as any).accessToken) || '';
+  constructor(
+    protected readonly transformer: MessageTransformer<T, U>,
+    protected readonly storage: StorageProvider<V, W, any, any>,
+  ) {
+    this.logger = (this.constructor as any).logger;
   }
 }
