@@ -30,18 +30,18 @@ enum InstanceState {
 }
 
 model Instance {
-  id               BigInt       @id @default(autoincrement())    
-  idInstance       String       @unique @db.Text
+  id               BigInt         @id @default(autoincrement())
+  idInstance       String         @unique @db.Text
   name             String?
-  phoneNumber      String?
-  apiTokenInstance String       @db.Text
+  apiTokenInstance String         @db.Text
   stateInstance    InstanceState?
-  userId           String
-  user             User         @relation(fields: [userId], references: [id])
-  settings         Json?        @default("{}") @db.Json
-  createdAt        DateTime     @default(now())
-}
+  userId           String         @db.Uuid // Asegúrate que el tipo coincida con User.id
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings         Json?          @default("{}") @db.Json
+  createdAt        DateTime       @default(now())
 
+  @@index([userId])
+}
 
 
 
