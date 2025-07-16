@@ -11,26 +11,26 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
-import { GhlService } from '../ghl/ghl.service';
+import { EvolutionApiService } from '../evolution-api/evolution-api.service';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { GhlWebhookDto } from '../ghl/dto/ghl-webhook.dto';
+import { GhlWebhookDto } from '../evolution-api/dto/ghl-webhook.dto';
 // Importa el tipo correcto del webhook desde tu archivo central de tipos
 import { EvolutionWebhook } from '../types';
-import { EvolutionWebhookGuard } from './guards/evolution-webhook.guard';
+import { EvolutionApiWebhookGuard } from './guards/evolution-api-webhook.guard';
 
 @Controller('webhooks')
 export class WebhooksController {
   constructor(
     private readonly logger: Logger,
-    private readonly ghlService: GhlService,
+    private readonly evolutionApiService: EvolutionApiService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService, // Prisma se mantiene por si lo usas en el webhook de GHL
   ) {}
 
   @Post('evolution')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(EvolutionWebhookGuard)
+  @UseGuards(EvolutionApiWebhookGuard)
   async handleEvolutionWebhook(
     // Tipamos el payload correctamente para asegurar la estructura
     @Body() payload: EvolutionWebhook, 
@@ -48,7 +48,7 @@ export class WebhooksController {
       
       // --- LLAMADA CORREGIDA: Se pasa un solo argumento (el payload completo) ---
       // El servicio se encargará de extraer el instanceId y el resto de los datos.
-      await this.ghlService.handleEvolutionWebhook(payload);
+      await this.evolutionApiService.handleEvolutionWebhook(payload);
 
     } catch (error) {
       this.logger.error(`Error processing Evolution webhook: ${error.message}`, error.stack);
@@ -81,7 +81,7 @@ export class WebhooksController {
       }
 
       let instanceId: string | null = null;
-      const contact = await this.ghlService.getGhlContactByPhone(locationId, ghlWebhook.phone);
+      const contact = await this.evolutionApiService.getGhlContactByPhone(locationId, ghlWebhook.phone);
       
       if (contact?.tags) {
         instanceId = this.extractInstanceIdFromTags(contact.tags);
@@ -100,13 +100,13 @@ export class WebhooksController {
       }
       
       if (ghlWebhook.type === 'SMS' && (ghlWebhook.message || ghlWebhook.attachments?.length)) {
-        await this.ghlService.handlePlatformWebhook(ghlWebhook, instanceId);
+        await this.evolutionApiService.handlePlatformWebhook(ghlWebhook, instanceId);
       }
 
     } catch (error) {
       this.logger.error(`Error processing GHL webhook for location ${locationId}: ${error.message}`, error.stack);
       if (locationId && messageId) {
-        await this.ghlService.updateGhlMessageStatus(locationId, messageId, 'failed', {
+        await this.evolutionApiService.updateGhlMessageStatus(locationId, messageId, 'failed', {
           error: { message: error.message || 'Failed to process outbound message' },
         });
       }

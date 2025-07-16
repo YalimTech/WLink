@@ -1,30 +1,30 @@
-// src/ghl/ghl.service.ts
+// src/evolution-api/evolution-api.service.ts
 
 import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { BaseAdapter, NotFoundError, IntegrationError } from '../core/base-adapter';
-import { GhlTransformer } from './ghl.transformer';
+import { EvolutionApiTransformer } from './evolution-api.transformer';
 import { PrismaService, parseId } from '../prisma/prisma.service';
 import { EvolutionService } from '../evolution/evolution.service';
 import { GhlWebhookDto } from './dto/ghl-webhook.dto';
 import { User, Instance, GhlPlatformMessage, EvolutionWebhook, GhlContact, GhlContactUpsertRequest, GhlContactUpsertResponse, MessageStatusPayload } from '../types';
 
 @Injectable()
-export class GhlService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook, User, Instance> {
+export class EvolutionApiService extends BaseAdapter<GhlPlatformMessage, EvolutionWebhook, User, Instance> {
   // --- CORREGIDO: El logger ahora es 'protected' para coincidir con la clase base ---
-  protected readonly logger = new Logger(GhlService.name);
+  protected readonly logger = new Logger(EvolutionApiService.name);
 
   private readonly ghlApiBaseUrl = 'https://services.leadconnectorhq.com';
   private readonly ghlApiVersion = '2021-07-28';
   
   constructor(
-    protected readonly ghlTransformer: GhlTransformer,
+    protected readonly evolutionApiTransformer: EvolutionApiTransformer,
     protected readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly evolutionService: EvolutionService,
   ) {
-    super(ghlTransformer, prisma);
+    super(evolutionApiTransformer, prisma);
   }
 
   private async getHttpClient(ghlUserId: string): Promise<AxiosInstance> {

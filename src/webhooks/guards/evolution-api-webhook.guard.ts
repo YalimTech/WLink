@@ -1,4 +1,4 @@
-// src/webhooks/guards/evolution-webhook.guard.ts
+// src/webhooks/guards/evolution-api-webhook.guard.ts
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
@@ -6,7 +6,7 @@ import { BaseEvolutionApiAuthGuard } from '../../evolutionapi';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
-export class EvolutionWebhookGuard extends BaseEvolutionApiAuthGuard implements CanActivate {
+export class EvolutionApiWebhookGuard extends BaseEvolutionApiAuthGuard implements CanActivate {
   constructor(
     storageService: PrismaService,
     private readonly configService: ConfigService,

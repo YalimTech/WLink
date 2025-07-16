@@ -1,12 +1,12 @@
-// src/ghl/ghl.transformer.ts
+// src/evolution-api/evolution-api.transformer.ts
 
 import { Injectable, Logger } from '@nestjs/common';
 import { MessageTransformer } from '../core/base-adapter';
 import { GhlPlatformMessage, EvolutionWebhook } from '../types';
 
 @Injectable()
-export class GhlTransformer implements MessageTransformer<GhlPlatformMessage, EvolutionWebhook> {
-  private readonly logger = new Logger(GhlTransformer.name);
+export class EvolutionApiTransformer implements MessageTransformer<GhlPlatformMessage, EvolutionWebhook> {
+  private readonly logger = new Logger(EvolutionApiTransformer.name);
 
   toPlatformMessage(webhook: EvolutionWebhook): GhlPlatformMessage {
     let messageText = 'Unsupported message type';
