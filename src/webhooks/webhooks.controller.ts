@@ -85,7 +85,7 @@ export class WebhooksController {
       if (!conversationProviderId) throw new BadRequestException("Conversation provider ID is wrong");
       if (!locationId) throw new BadRequestException("Location ID is missing");
 
-      let instanceId: string | bigint | null = null;
+      let instanceId: string | null = null;
 
       const contact = await this.ghlService.getGhlContact(locationId, ghlWebhook.phone);
       if (contact?.tags) {
@@ -103,7 +103,7 @@ export class WebhooksController {
       res.status(HttpStatus.OK).send();
 
       if (ghlWebhook.type === "SMS" && (ghlWebhook.message || (ghlWebhook.attachments?.length > 0))) {
-        await this.ghlService.handlePlatformWebhook(ghlWebhook, BigInt(instanceId));
+        await this.ghlService.handlePlatformWebhook(ghlWebhook, instanceId as string);
       }
 
     } catch (error) {
