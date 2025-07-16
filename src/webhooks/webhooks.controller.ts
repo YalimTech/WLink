@@ -8,7 +8,7 @@ import {
   Res,
   BadRequestException,
   Logger,
-  UseGuards, // Asegúrate de importar UseGuards
+  UseGuards,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { GhlService } from '../ghl/ghl.service';
@@ -16,13 +16,13 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { GhlWebhookDto } from '../ghl/dto/ghl-webhook.dto';
 // Importa el tipo correcto del webhook desde tu archivo central de tipos
-import { EvolutionWebhook } from '../types'; 
+import { EvolutionWebhook } from '../types';
+import { EvolutionWebhookGuard } from './guards/evolution-webhook.guard';
 
 @Controller('webhooks')
 export class WebhooksController {
-  private readonly logger = new Logger(WebhooksController.name);
-
   constructor(
+    private readonly logger: Logger,
     private readonly ghlService: GhlService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService, // Prisma se mantiene por si lo usas en el webhook de GHL
@@ -30,7 +30,7 @@ export class WebhooksController {
 
   @Post('evolution')
   @HttpCode(HttpStatus.OK)
-  // Futuro recomendado: @UseGuards(EvolutionWebhookGuard) para proteger este endpoint
+  @UseGuards(EvolutionWebhookGuard)
   async handleEvolutionWebhook(
     // Tipamos el payload correctamente para asegurar la estructura
     @Body() payload: EvolutionWebhook, 

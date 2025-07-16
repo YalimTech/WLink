@@ -4,7 +4,7 @@ import { GhlPlatformMessage, EvolutionWebhook } from '../types';
 
 @Injectable()
 export class GhlTransformer implements MessageTransformer<GhlPlatformMessage, EvolutionWebhook> {
-  private readonly logger = new Logger(GhlTransformer.name);
+  constructor(private readonly logger: Logger) {}
 
   /**
    * Transforma un webhook entrante de Evolution API a un formato que GoHighLevel entiende.

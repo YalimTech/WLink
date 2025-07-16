@@ -33,12 +33,13 @@ export class GhlService extends BaseAdapter<
   private readonly ghlApiVersion = '2021-07-28';
 
   constructor(
+    private readonly logger: Logger,
     protected readonly ghlTransformer: GhlTransformer,
     protected readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly evolutionService: EvolutionService,
   ) {
-    super(ghlTransformer, prisma);
+    super(ghlTransformer, prisma, logger);
   }
 
   /**

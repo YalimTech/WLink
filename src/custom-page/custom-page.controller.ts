@@ -6,10 +6,8 @@ import * as CryptoJS from "crypto-js";
 
 @Controller("app") // El prefijo de la ruta para la página de la aplicación
 export class CustomPageController {
-  // Logger corregido para usar el de NestJS, que es la práctica estándar.
-  private readonly logger = new Logger(CustomPageController.name);
-
   constructor(
+    private readonly logger: Logger,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
