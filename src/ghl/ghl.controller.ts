@@ -20,9 +20,8 @@ import { GhlContextGuard } from './guards/ghl-context.guard';
 @Controller('api/instances')
 @UseGuards(GhlContextGuard)
 export class GhlController {
-  private readonly logger = new Logger(GhlController.name);
-
   constructor(
+    private readonly logger: Logger,
     private readonly prisma: PrismaService,
     private readonly ghlService: GhlService,
   ) {}

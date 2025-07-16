@@ -10,7 +10,9 @@ export function parseId(id: string | number | bigint): string {
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, StorageProvider<User, Instance & { user: User }, UserCreateData, UserUpdateData> {
-  private readonly logger = new Logger(PrismaService.name);
+  constructor(private readonly logger: Logger) {
+    super();
+  }
 
   async onModuleInit() {
     await this.$connect();

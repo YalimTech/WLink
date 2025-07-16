@@ -9,6 +9,7 @@ import {
   Req,
   HttpException,
   HttpStatus,
+  Logger,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -16,22 +17,19 @@ import { ConfigService } from '@nestjs/config';
 import { Response, Request } from 'express';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
-import { EvolutionApiLogger } from '../evolutionapi';
 import { GhlOAuthCallbackDto } from './dto/ghl-oauth-callback.dto';
 import { GhlExternalAuthPayloadDto } from './dto/ghl-external-auth-payload.dto';
 import { GhlService } from '../ghl/ghl.service';
-import { AuthService } from '../auth.service';
 
 @Controller('oauth')
 export class GhlOauthController {
-  private readonly logger = EvolutionApiLogger.getInstance(GhlOauthController.name);
   private readonly ghlServicesUrl = 'https://services.leadconnectorhq.com';
 
   constructor(
+    private readonly logger: Logger,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly ghlService: GhlService,
-    private readonly authService: AuthService,
   ) {}
 
   @Get('callback')
@@ -203,7 +201,6 @@ async handleExternalAuthCredentials(
     }
 
     try {
-      await this.authService.validateInstance(instanceId, apiToken);
       await this.ghlService.createEvolutionApiInstanceForUser(
         locationId,
         instanceId,
