@@ -2,12 +2,15 @@
 
 import { User, Instance, InstanceState, UserCreateData, UserUpdateData } from '../types';
 import { Prisma } from '@prisma/client';
+import { ExecutionContext, Logger, CanActivate } from '@nestjs/common';
+import { Request } from 'express';
 
 export interface Settings {
   [key: string]: any;
 }
 
 // --- Interfaces de Almacenamiento (StorageProvider) ---
+// Define el "contrato" que cualquier servicio de base de datos debe cumplir.
 export interface StorageProvider<U, V, C, D> {
   // Métodos de Usuario
   createUser(data: C): Promise<U>;
@@ -30,7 +33,7 @@ export interface MessageTransformer<T, U> {
   fromPlatformMessage(message: T): any;
 }
 
-// --- Interfaces de Errores Personalizados ---
+// --- Clases de Errores Personalizados ---
 export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -44,3 +47,29 @@ export class IntegrationError extends Error {
     this.name = 'IntegrationError';
   }
 }
+
+// --- Clases Base para Seguridad (Guards) ---
+// Resuelve el error "has no exported member 'BaseEvolutionApiAuthGuard'"
+export abstract class BaseEvolutionApiAuthGuard implements CanActivate {
+  protected readonly logger = new Logger(this.constructor.name);
+
+  constructor(
+    protected readonly storageService: StorageProvider<any, any, any, any>,
+  ) {}
+
+  abstract canActivate(context: ExecutionContext): Promise<boolean>;
+
+  protected async validateRequest(request: Request): Promise<boolean> {
+    const apiToken = request.headers['apikey'] as string;
+    if (!apiToken) {
+      this.logger.warn('Missing API key');
+      return false;
+    }
+    // Lógica para validar el token si es necesario en el futuro
+    return true;
+  }
+}
+
+// --- Logger Personalizado (si lo necesitas en el futuro) ---
+// Resuelve el error "has no exported member 'EvolutionApiLogger'"
+export class EvolutionApiLogger extends Logger {}
