@@ -19,8 +19,8 @@ export enum InstanceState {
 }
 
 export interface Instance {
-  id: bigint;
-  idInstance: bigint;
+  id: string;
+  idInstance: string;
   name?: string | null;
   phoneNumber?: string | null;
   apiTokenInstance: string;

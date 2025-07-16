@@ -4,10 +4,10 @@ import {
   Get,
   Query,
   Body,
+  HttpCode,
   Res,
   HttpException,
   HttpStatus,
-  Logger,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
+import { EvolutionApiLogger } from '../evolutionapi';
 import { GhlOAuthCallbackDto } from './dto/ghl-oauth-callback.dto';
 import { GhlExternalAuthPayloadDto } from './dto/ghl-external-auth-payload.dto';
 import { GhlService } from '../ghl/ghl.service';
@@ -22,7 +23,7 @@ import { AuthService } from '../auth.service';
 
 @Controller('oauth')
 export class GhlOauthController {
-  private readonly logger = new Logger(GhlOauthController.name);
+  private readonly logger = EvolutionApiLogger.getInstance(GhlOauthController.name);
   private readonly ghlServicesUrl = 'https://services.leadconnectorhq.com';
 
   constructor(
@@ -120,7 +121,7 @@ export class GhlOauthController {
         }
       }
 
-      return res.status(200).send(`<h1>WLink Bridge autorizado correctamente.</h1>`);
+      return res.status(200).send(this.generateSuccessHtml());
     } catch (error) {
       this.logger.error('Error exchanging GHL OAuth code for tokens:', error);
       const errorDesc =
@@ -134,13 +135,14 @@ export class GhlOauthController {
     }
   }
   @Post('external-auth-credentials')
+  @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async externalAuthCredentials(
+  async handleExternalAuthCredentials(
     @Query('instance_id') queryInstanceId: string,
     @Query('api_token_instance') queryApiToken: string,
     @Query('locationId') queryLocationId: string,
     @Body() body: GhlExternalAuthPayloadDto,
-  ) {
+  ): Promise<{ message: string }> {
     const instanceId = queryInstanceId || body?.instance_id;
     const apiToken = queryApiToken || body?.api_token_instance;
     const locationId = queryLocationId || body?.locationId?.[0];
@@ -187,10 +189,11 @@ export class GhlOauthController {
   }
 
   @Post('external-auth-body')
+  @HttpCode(HttpStatus.OK)
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  async externalAuthBody(
+  async handleExternalAuthBody(
     @Body() payload: GhlExternalAuthPayloadDto,
-  ) {
+  ): Promise<{ message: string }> {
     const instanceId = payload.instance_id;
     const apiToken = payload.api_token_instance;
     // locationId can be provided either as an array or a single string
@@ -235,5 +238,31 @@ export class GhlOauthController {
       this.logger.error(`Credential validation (body) failed: ${err.message}`);
       throw new HttpException('Invalid credentials (from body)', HttpStatus.UNAUTHORIZED);
     }
+  }
+
+  private generateSuccessHtml(): string {
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <title>OAuth Authentication Complete</title>
+          <style>
+            body { font-family: sans-serif; text-align: center; padding: 40px; background: #f4f6f8; }
+            .container { background: white; padding: 30px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+            h1 { color: #2d3436; margin-bottom: 20px; }
+            .check { font-size: 48px; color: #4caf50; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="check">✅</div>
+            <h1>Authentication Complete!</h1>
+            <p>Your workspace has been successfully connected to Evolution API.</p>
+            <p>You can close this page.</p>
+          </div>
+        </body>
+      </html>
+    `;
   }
 }
