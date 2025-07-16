@@ -30,17 +30,18 @@ enum InstanceState {
 }
 
 model Instance {
-  id               String       @id @default(uuid()) @db.Uuid // UUID generado automáticamente
-  idInstance       String       @unique @db.Text              // Permite UUID como string
+  id               BigInt       @id @default(autoincrement())    
+  idInstance       String       @unique @db.Text
   name             String?
   phoneNumber      String?
-  apiTokenInstance String       @db.Text                      // Token largo, con o sin guiones
+  apiTokenInstance String       @db.Text
   stateInstance    InstanceState?
   userId           String
   user             User         @relation(fields: [userId], references: [id])
   settings         Json?        @default("{}") @db.Json
   createdAt        DateTime     @default(now())
 }
+
 
 
 
