@@ -186,7 +186,7 @@ export class PrismaService
     }
   }
 
-  async getInstance(idInstance: string | number): Promise<(Instance & { user: User }) | null> {
+  async getInstance(idInstance: string): Promise<(Instance & { user: User }) | null> {
     return (await this.instance.findUnique({
       where: { idInstance: parseId(idInstance) },
       include: { user: true },
@@ -200,7 +200,7 @@ export class PrismaService
     })) as unknown as Instance[];
   }
 
-  async removeInstance(idInstance: string | number): Promise<Instance> {
+  async removeInstance(idInstance: string): Promise<Instance> {
     try {
       const instance = await this.instance.delete({
         where: { idInstance: parseId(idInstance) },
@@ -213,7 +213,7 @@ export class PrismaService
     }
   }
 
-  async updateInstanceSettings(idInstance: string | number, settings: Settings): Promise<Instance> {
+  async updateInstanceSettings(idInstance: string, settings: Settings): Promise<Instance> {
     try {
       const instance = await this.instance.update({
         where: { idInstance: parseId(idInstance) },
@@ -227,7 +227,7 @@ export class PrismaService
     }
   }
 
-  async updateInstanceState(idInstance: string | number, state: InstanceState): Promise<Instance> {
+  async updateInstanceState(idInstance: string, state: InstanceState): Promise<Instance> {
     try {
       const instance = await this.instance.update({
         where: { idInstance: parseId(idInstance) },
@@ -241,7 +241,7 @@ export class PrismaService
     }
   }
 
-  async updateInstanceName(idInstance: string | number, name: string): Promise<Instance & { user: User }> {
+  async updateInstanceName(idInstance: string, name: string): Promise<Instance & { user: User }> {
     try {
       const instance = await this.instance.update({
         where: { idInstance: parseId(idInstance) },
