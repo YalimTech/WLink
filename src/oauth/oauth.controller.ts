@@ -144,7 +144,7 @@ export class GhlOauthController {
     @Query('api_token_instance') queryApiToken: string,
     @Query('locationId') queryLocationId: string,
     @Body() body: GhlExternalAuthPayloadDto,
-  ) {
+  ): Promise<{ message: string }> {
     const instanceId = queryInstanceId || body?.instance_id;
     const apiToken = queryApiToken || body?.api_token_instance;
     const locationId = queryLocationId || body?.locationId?.[0];
@@ -190,7 +190,7 @@ async handleExternalAuthCredentials(@Body() data: GhlExternalAuthPayloadDto) {
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async handleExternalAuthBody(
     @Body() payload: GhlExternalAuthPayloadDto,
-  ) {
+  ): Promise<{ message: string }> {
     const instanceId = payload.instance_id;
     const apiToken = payload.api_token_instance;
     const locationId = Array.isArray(payload.locationId)

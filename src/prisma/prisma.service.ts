@@ -15,7 +15,7 @@ import {
 } from '../types';
 
 
-function parseId(id: number | string | bigint): string {
+function parseId(id: string | number): string {
   return typeof id === 'string' ? id : id.toString();
 }
 
