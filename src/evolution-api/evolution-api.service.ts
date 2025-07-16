@@ -144,11 +144,12 @@ export class EvolutionApiService extends BaseAdapter<
     if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
 
     try {
-      const status = await this.evolutionService.getInstanceStatus(apiToken);
-      if (status.instance.instanceName !== instanceId) {
-        throw new Error('Instance ID mismatch.');
-      }
+      await this.evolutionService.getInstanceStatus(apiToken);
     } catch (err) {
+      this.logger.error(
+        `Failed to verify Evolution API credentials for instance ${instanceId}.`,
+        err,
+      );
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
 
