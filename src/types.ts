@@ -18,7 +18,7 @@ export interface UpdateInstanceDto {
   name: string;
 }
 
-// --- Tipos de Prisma ---
+// --- Tipos de Prisma (Resuelve errores en prisma.service) ---
 export type UserCreateData = Prisma.UserCreateInput;
 export type UserUpdateData = Prisma.UserUpdateInput;
 
@@ -57,7 +57,7 @@ export interface GhlUserData {
 export interface GhlPlatformAttachment {
   url: string;
   fileName?: string;
-  type?: string; // Campo añadido para resolver error
+  type?: string;
 }
 export interface MessageStatusPayload {
   status?: 'delivered' | 'read' | 'failed' | 'pending';
@@ -72,7 +72,7 @@ export interface GhlPlatformMessage {
   attachments?: GhlPlatformAttachment[];
   timestamp?: Date;
 }
-// --- CORREGIDO: Resuelve errores de importación ---
+// --- CORREGIDO: Resuelve errores de importación en ghl.service ---
 export interface GhlContactUpsertRequest {
   name?: string | null;
   locationId: string;
