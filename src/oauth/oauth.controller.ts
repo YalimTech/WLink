@@ -152,7 +152,7 @@ export class GhlOauthController {
           <div class="container">
             <div class="check">✅</div>
             <h1>Authentication Complete!</h1>
-            <p>Your workspace has been successfully connected to Evolution API.</p>
+            <p>Your workspace has been successfully connected to WLINK.</p>
             <p>You can close this page.</p>
           </div>
         </body>
