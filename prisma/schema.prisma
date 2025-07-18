@@ -12,7 +12,7 @@ datasource db {
 }
 
 model User {
-  id             String     @id @default(uuid()) @db.Uuid
+  id             String     @id // <--- CAMBIO AQUÍ
   companyId      String?
   accessToken    String     @db.Text
   refreshToken   String     @db.Text
@@ -35,14 +35,10 @@ model Instance {
   name             String?
   apiTokenInstance String         @db.Text
   stateInstance    InstanceState?
-  userId           String         @db.Uuid 
+  userId           String         // <--- CAMBIO AQUÍ
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   settings         Json?          @default("{}") @db.Json
   createdAt        DateTime       @default(now())
 
   @@index([userId])
 }
-
-
-
-
