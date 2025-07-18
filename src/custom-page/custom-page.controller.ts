@@ -1,10 +1,19 @@
-import { Controller, Get, Post, Body, Res, HttpCode, HttpStatus, Logger } from "@nestjs/common";
-import { Response } from "express";
-import { PrismaService } from "../prisma/prisma.service";
-import { ConfigService } from "@nestjs/config";
-import * as CryptoJS from "crypto-js";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Res,
+  HttpCode,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { Response } from 'express';
+import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
+import * as CryptoJS from 'crypto-js';
 
-@Controller("app") // El prefijo de la ruta para la página de la aplicación
+@Controller('app')
 export class CustomPageController {
   constructor(
     private readonly logger: Logger,
@@ -12,38 +21,47 @@ export class CustomPageController {
     private readonly configService: ConfigService,
   ) {}
 
-  @Get("whatsapp") // Ruta para acceder a la página de configuración
+  @Get('whatsapp')
   async getCustomPage(@Res() res: Response) {
-    // Headers necesarios para que la página se pueda mostrar en un iframe de GoHighLevel
-    res.setHeader("X-Frame-Options", "ALLOWALL");
-    res.setHeader("Content-Security-Policy", "frame-ancestors *");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "*");
-
-    // Enviamos el HTML completo que contiene la lógica de la interfaz de usuario
+    res.setHeader('X-Frame-Options', 'ALLOWALL');
+    res.setHeader('Content-Security-Policy', 'frame-ancestors *');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
     res.send(this.generateCustomPageHTML());
   }
 
-  @Post("decrypt-user-data")
+  @Post('decrypt-user-data')
   @HttpCode(HttpStatus.OK)
-  async decryptUserData(@Body() body: { encryptedData: string }, @Res() res: Response) {
+  async decryptUserData(
+    @Body() body: { encryptedData: string },
+    @Res() res: Response,
+  ) {
     try {
-      const sharedSecret = this.configService.get<string>("GHL_APP_SHARED_SECRET");
+      // --- CORRECCIÓN CRÍTICA ---
+      // Se usa "GHL_SHARED_SECRET" para que coincida con las variables de entorno.
+      const sharedSecret = this.configService.get<string>('GHL_SHARED_SECRET');
       if (!sharedSecret) {
-        return res.status(400).json({ error: "Shared secret not configured on the server." });
+        return res
+          .status(400)
+          .json({ error: 'Shared secret not configured on the server.' });
       }
 
-      const decrypted = CryptoJS.AES.decrypt(body.encryptedData, sharedSecret).toString(CryptoJS.enc.Utf8);
+      const decrypted = CryptoJS.AES.decrypt(
+        body.encryptedData,
+        sharedSecret,
+      ).toString(CryptoJS.enc.Utf8);
       const userData = JSON.parse(decrypted);
 
-      this.logger.log("Decrypted user data received.");
+      this.logger.log('Decrypted user data received.');
 
-      // La locationId es crucial para saber a qué cuenta de GHL pertenece el usuario.
-      const locationId = userData.activeLocation || userData.locationId || userData.companyId;
+      const locationId =
+        userData.activeLocation || userData.locationId || userData.companyId;
 
       if (!locationId) {
-        return res.status(400).json({ error: "No location ID found in user data", userData });
+        return res
+          .status(400)
+          .json({ error: 'No location ID found in user data', userData });
       }
 
       const user = await this.prisma.findUser(locationId);
@@ -52,21 +70,21 @@ export class CustomPageController {
         success: true,
         locationId,
         userData,
-        user: user ? { id: user.id, hasTokens: !!(user.accessToken && user.refreshToken) } : null,
+        user: user
+          ? { id: user.id, hasTokens: !!(user.accessToken && user.refreshToken) }
+          : null,
       });
-
     } catch (error) {
-      this.logger.error("Error decrypting user data:", error);
-      return res.status(400).json({ error: "Failed to decrypt user data", details: error.message });
+      this.logger.error('Error decrypting user data:', error);
+      return res
+        .status(400)
+        .json({ error: 'Failed to decrypt user data', details: error.message });
     }
   }
 
-  // Esta función genera el HTML, CSS y JavaScript de la página de administración.
-  // Es una recreación fiel de la de Green API, pero adaptada para Evolution API.
   private generateCustomPageHTML(): string {
-    // Adaptamos el tema de colores para WLink Bridge
-    const primaryColor = '#4A90E2'; // Un azul moderno
-    const secondaryColor = '#50E3C2'; // Un verde menta
+    const primaryColor = '#4A90E2';
+    const secondaryColor = '#50E3C2';
     const gradient = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
     const gradientDarker = `linear-gradient(135deg, #3A7BC8 0%, #40C3A2 100%)`;
 
@@ -77,7 +95,6 @@ export class CustomPageController {
         <meta charset="UTF-8">
         <title>WLink Bridge - Evolution API Integration</title>
         <style>
-          /* CSS completo, similar al de Green API pero con el nuevo tema */
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f4f7f9; min-height: 100vh; padding: 20px; line-height: 1.6; }
           .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); overflow: hidden; min-height: calc(100vh - 40px); }
@@ -106,15 +123,15 @@ export class CustomPageController {
           .alert.info { background: #d1ecf1; color: #0c5460; }
           .hidden { display: none; }
           .instances-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; margin-top: 25px; }
-          .instance-card { background: white; border-radius: 16px; padding: 25px; border: 1px solid #e9ecef; }
-          .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+          .instance-card { background: white; border-radius: 16px; padding: 25px; border: 1px solid #e9ecef; display: flex; flex-direction: column; justify-content: space-between; }
+          .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; align-self: flex-start; margin-bottom: 15px; }
           .status-badge.authorized { background: #d4edda; color: #155724; }
           .status-badge.notAuthorized, .status-badge.blocked { background: #f8d7da; color: #721c24; }
           .instance-actions { display: flex; gap: 12px; margin-top: 20px; }
-          /* Estilos del Modal */
           .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
           .modal-overlay.show { opacity: 1; visibility: visible; }
-          .modal { background: white; border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; }
+          .modal { background: white; border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; text-align: left; }
+          .modal h3 { margin-bottom: 15px; }
           .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
         </style>
       </head>
@@ -122,7 +139,7 @@ export class CustomPageController {
         <div class="container">
           <div class="header">
             <div class="logo-container">
-              <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="${primaryColor}" stroke="white" stroke-width="4"/><path d="M30 50 L70 50 M50 30 L50 70" stroke="white" stroke-width="8" stroke-linecap="round"/></svg>
+              <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path fill="${primaryColor}" d="M50,2A48,48,0,1,1,2,50,48,48,0,0,1,50,2Z" style="stroke-width:4;stroke:white;"/><path d="M30 50 L70 50 M50 30 L50 70" stroke="white" stroke-width="8" stroke-linecap="round"/></svg>
               <h1>WLink Bridge</h1>
             </div>
             <p>Your Evolution API Integration for GoHighLevel</p>
@@ -141,7 +158,7 @@ export class CustomPageController {
                   </div>
                   <div class="form-group">
                     <label for="apiToken">API Token</label>
-                    <input type="text" id="apiToken" name="apiToken" placeholder="Your Evolution API token (found in your .env file)" required>
+                    <input type="text" id="apiToken" name="apiToken" placeholder="Your Evolution API token" required>
                   </div>
                   <div class="form-group">
                     <label for="instanceName">Instance Nickname (optional)</label>
@@ -149,7 +166,7 @@ export class CustomPageController {
                   </div>
                   <button type="submit" id="submitBtn" class="btn">Add Instance</button>
                 </form>
-                <div id="result"></div>
+                <div id="formResult"></div>
               </div>
             </div>
           </div>
@@ -157,8 +174,8 @@ export class CustomPageController {
 
         <div id="customModal" class="modal-overlay">
           <div class="modal">
-            <h3 id="modalTitle"></h3>
-            <p id="modalBody"></p>
+            <h3 id="modalTitle">Confirmation</h3>
+            <p id="modalBody">Are you sure?</p>
             <div class="modal-actions">
               <button id="modalCancel" class="btn danger">Cancel</button>
               <button id="modalConfirm" class="btn">OK</button>
@@ -167,9 +184,36 @@ export class CustomPageController {
         </div>
 
         <script>
-          // Lógica de JavaScript para manejar la página
           class ModalSystem {
-            // ... (El código del sistema de modales es el mismo, no necesita cambios)
+              constructor() {
+                  this.modal = document.getElementById('customModal');
+                  this.title = document.getElementById('modalTitle');
+                  this.body = document.getElementById('modalBody');
+                  this.confirmBtn = document.getElementById('modalConfirm');
+                  this.cancelBtn = document.getElementById('modalCancel');
+                  this.resolvePromise = null;
+
+                  this.confirmBtn.onclick = () => this.handleConfirm(true);
+                  this.cancelBtn.onclick = () => this.handleConfirm(false);
+                  this.modal.onclick = (e) => { if (e.target === this.modal) this.handleConfirm(false); };
+              }
+
+              show(body, title = 'Confirmation') {
+                  this.title.textContent = title;
+                  this.body.textContent = body;
+                  this.modal.classList.add('show');
+                  return new Promise(resolve => {
+                      this.resolvePromise = resolve;
+                  });
+              }
+
+              handleConfirm(value) {
+                  this.modal.classList.remove('show');
+                  if (this.resolvePromise) {
+                      this.resolvePromise(value);
+                      this.resolvePromise = null;
+                  }
+              }
           }
 
           class GHLApp {
@@ -178,7 +222,7 @@ export class CustomPageController {
               this.locationId = null;
               this.encryptedUserData = null;
               this.instances = [];
-              this.modal = new ModalSystem(); // (Se asume que la clase ModalSystem está definida como en el original)
+              this.modal = new ModalSystem();
               this.init();
             }
 
@@ -205,7 +249,9 @@ export class CustomPageController {
                   body: JSON.stringify({ encryptedData })
                 });
                 const result = await response.json();
-                if (!result.success) return this.showError(result.error);
+                if (!response.ok || !result.success) {
+                    return this.showError(result.error || 'Failed to process user data.');
+                }
                 
                 this.userData = result.userData;
                 this.locationId = result.locationId;
@@ -223,16 +269,16 @@ export class CustomPageController {
               const defaultOptions = {
                 headers: {
                   'Content-Type': 'application/json',
-                  'X-GHL-Context': this.encryptedUserData // Enviamos el contexto encriptado para la autenticación en el backend
+                  'X-GHL-Context': this.encryptedUserData
                 }
               };
               const mergedOptions = { ...defaultOptions, ...options, headers: { ...defaultOptions.headers, ...options.headers } };
               const response = await fetch(url, mergedOptions);
+              const result = await response.json();
               if (!response.ok) {
-                  const errorResult = await response.json();
-                  throw new Error(errorResult.message || 'API request failed');
+                  throw new Error(result.message || \`API request failed with status \${response.status}\`);
               }
-              return response.json();
+              return result;
             }
 
             showError(message) {
@@ -244,7 +290,12 @@ export class CustomPageController {
             showMainContent(data) {
               document.getElementById('loadingSection').classList.add('hidden');
               document.getElementById('mainContent').classList.remove('hidden');
-              // (Lógica para mostrar el estado de la conexión, similar al original)
+              const statusDiv = document.getElementById('statusInfo');
+              if (data.user && data.user.hasTokens) {
+                  statusDiv.innerHTML = '<div class="alert success">✅ Successfully connected to GoHighLevel.</div>';
+              } else {
+                  statusDiv.innerHTML = '<div class="alert error">❌ Not connected to GoHighLevel. Please re-install the app.</div>';
+              }
             }
 
             async loadInstances() {
@@ -255,21 +306,23 @@ export class CustomPageController {
                   this.displayInstances();
                 }
               } catch (error) {
-                this.modal.alert('Failed to load instances: ' + error.message, 'Error');
+                this.modal.show('Failed to load instances: ' + error.message, 'Error');
               }
             }
 
             displayInstances() {
               const list = document.getElementById('instancesList');
-              if (this.instances.length === 0) {
+              if (!this.instances || this.instances.length === 0) {
                 list.innerHTML = '<p>No instances configured yet. Add one below!</p>';
                 return;
               }
               list.innerHTML = this.instances.map(inst => \`
                 <div class="instance-card">
-                  <div class="status-badge \${inst.state || 'notAuthorized'}">\${inst.state || 'Unknown'}</div>
-                  <h4>\${inst.name || 'Unnamed Instance'}</h4>
-                  <p>ID: \${inst.id}</p>
+                  <div>
+                    <div class="status-badge \${inst.state || 'notAuthorized'}">\${inst.state || 'Unknown'}</div>
+                    <h4>\${inst.name || 'Unnamed Instance'}</h4>
+                    <p>ID: \${inst.id}</p>
+                  </div>
                   <div class="instance-actions">
                     <button class="btn danger" onclick="app.deleteInstance('\${inst.id}')">Delete</button>
                   </div>
@@ -281,7 +334,7 @@ export class CustomPageController {
               event.preventDefault();
               const form = event.target;
               const submitBtn = form.querySelector('button');
-              const resultDiv = document.getElementById('result');
+              const resultDiv = document.getElementById('formResult');
               
               const payload = {
                 locationId: this.locationId,
@@ -309,23 +362,22 @@ export class CustomPageController {
               } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Add Instance';
+                setTimeout(() => { resultDiv.innerHTML = ''; }, 5000);
               }
             }
             
             async deleteInstance(instanceId) {
-                // (Lógica de confirmación y llamada a la API DELETE, similar al original)
-                const confirmed = await confirm('Are you sure you want to delete this instance?');
+                const confirmed = await this.modal.show(\`Are you sure you want to delete the instance "\${instanceId}"? This action cannot be undone.\`);
                 if (!confirmed) return;
                 try {
                     await this.makeApiRequest(\`/api/instances/\${instanceId}\`, { method: 'DELETE' });
                     await this.loadInstances();
                 } catch(error) {
-                    alert('Failed to delete instance: ' + error.message);
+                    this.modal.show('Failed to delete instance: ' + error.message, 'Error');
                 }
             }
           }
 
-          // Inicia la aplicación en el frontend
           let app;
           document.addEventListener('DOMContentLoaded', () => {
             app = new GHLApp();
