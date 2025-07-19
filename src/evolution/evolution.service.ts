@@ -2,24 +2,23 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
-import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EvolutionService {
-  private readonly baseUrl = process.env.EVOLUTION_API_URL;
+  private readonly baseUrl = this.configService.get<string>('EVOLUTION_API_URL');
 
   constructor(
     private readonly http: HttpService,
-    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {}
 
   async sendMessage(instanceToken: string, to: string, message: string) {
     const url = `${this.baseUrl}/message/send-text`;
-
     try {
       const response$ = this.http.post(
         url,
-        { to, text: message },
+        { number: to, textMessage: { text: message } }, // Corregido para coincidir con v2.3.0
         { headers: { apikey: instanceToken } },
       );
       const response = await lastValueFrom(response$);
@@ -32,12 +31,8 @@ export class EvolutionService {
     }
   }
 
-  /**
-   * Checks the connection status of an Evolution instance by its ID.
-   */
   async getInstanceStatus(instanceToken: string, instanceId: string) {
     const url = `${this.baseUrl}/instance/connectionState/${instanceId}`;
-
     try {
       const response$ = this.http.get(url, {
         headers: { apikey: instanceToken },
@@ -53,16 +48,23 @@ export class EvolutionService {
   }
 
   /**
-   * Configura los webhooks oficiales de Evolution API.
+   * Configura los webhooks para una instancia específica, incluyendo el token secreto.
    */
-  async configureWebhooks(instanceToken: string, webhookUrl: string) {
-    const url = `${this.baseUrl}/instance/webhook`;
+  async configureWebhooks(instanceName: string, instanceToken: string, webhookUrl: string) {
+    const url = `${this.baseUrl}/webhook/instance/${instanceName}`;
+    const secret = this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET');
+
     const payload = {
-      webhookUrl,
-      webhookTypes: [
-        'incomingMessageReceived',
-        'outgoingMessageReceived',
-        'stateInstanceChanged',
+      url: webhookUrl,
+      webhook_token: secret, // <-- ESTA ES LA CORRECCIÓN CLAVE
+      enabled: true,
+      webhook_by_events: false,
+      events: [
+        "application.status",
+        "qrcode.updated",
+        "connection.state",
+        "messages.upsert",
+        "messages.update",
       ],
     };
 
@@ -79,21 +81,17 @@ export class EvolutionService {
     }
   }
 
-  /**
-   * ✅ Nuevo método: Obtiene todas las instancias asociadas al token del usuario.
-   */
   async fetchInstances(instanceToken: string): Promise<{ id: string; name: string }[]> {
-    const url = `${this.baseUrl}/instances`;
-
+    const url = `${this.baseUrl}/instance/fetchInstances`; // Corregido a endpoint correcto
     try {
       const response$ = this.http.get(url, {
         headers: { apikey: instanceToken },
       });
       const response = await lastValueFrom(response$);
       return (
-        response.data.instances?.map((i: any) => ({
-          id: i.id?.toString?.() || String(i.id),
-          name: i.name,
+        response.data?.map((i: any) => ({
+          id: i.instance?.instanceName, // Ajustado a la estructura de respuesta
+          name: i.instance?.instanceName,
         })) ?? []
       );
     } catch (error) {
