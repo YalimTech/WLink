@@ -6,19 +6,25 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EvolutionService {
-  private readonly baseUrl = this.configService.get<string>('EVOLUTION_API_URL');
+  private readonly baseUrl: string;
 
   constructor(
     private readonly http: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.baseUrl = this.configService.get<string>('EVOLUTION_API_URL');
+  }
 
   async sendMessage(instanceToken: string, to: string, message: string) {
-    const url = `${this.baseUrl}/message/send-text`;
+    const url = `${this.baseUrl}/message/sendText`; // Endpoint actualizado para v2.3.0
     try {
       const response$ = this.http.post(
         url,
-        { number: to, textMessage: { text: message } }, // Corregido para coincidir con v2.3.0
+        {
+          number: to,
+          options: { delay: 1200, presence: 'composing' },
+          textMessage: { text: message },
+        },
         { headers: { apikey: instanceToken } },
       );
       const response = await lastValueFrom(response$);
@@ -51,6 +57,7 @@ export class EvolutionService {
    * Configura los webhooks para una instancia específica, incluyendo el token secreto.
    */
   async configureWebhooks(instanceName: string, instanceToken: string, webhookUrl: string) {
+    // El endpoint para configurar webhooks por instancia usa el NOMBRE de la instancia
     const url = `${this.baseUrl}/webhook/instance/${instanceName}`;
     const secret = this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET');
 
@@ -58,7 +65,7 @@ export class EvolutionService {
       url: webhookUrl,
       webhook_token: secret, // <-- ESTA ES LA CORRECCIÓN CLAVE
       enabled: true,
-      webhook_by_events: false,
+      webhook_by_events: false, // Para recibir todos los eventos en una sola URL
       events: [
         "application.status",
         "qrcode.updated",
@@ -90,7 +97,7 @@ export class EvolutionService {
       const response = await lastValueFrom(response$);
       return (
         response.data?.map((i: any) => ({
-          id: i.instance?.instanceName, // Ajustado a la estructura de respuesta
+          id: i.instance?.instanceName, // Ajustado a la estructura de respuesta de v2.3.0
           name: i.instance?.instanceName,
         })) ?? []
       );
