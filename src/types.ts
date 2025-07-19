@@ -32,7 +32,7 @@ export interface Instance {
 // --- DTOs (Data Transfer Objects) para las peticiones HTTP ---
 export interface CreateInstanceDto {
   locationId: string;
-  instanceName: string;
+  instanceId: string; // Corregido: de instanceName a instanceId
   apiToken: string;
   name?: string;
 }
@@ -62,7 +62,6 @@ export interface EvolutionWebhook {
   instance: string;
   data: MessageData;
   sender: string;
-  // --- CAMPOS AÑADIDOS PARA RESOLVER ERRORES DE INCOMPATIBILIDAD ---
   type?: string;
   timestamp?: number;
 }
@@ -70,19 +69,26 @@ export interface EvolutionWebhook {
 // --- Interfaces para GoHighLevel (GHL) ---
 export interface AuthReq extends Request {
   locationId: string;
+  // Agregando userData opcional para que esté disponible en el request si es necesario
+  userData?: GhlUserData; 
 }
+
 export interface GhlUserData {
   userId: string;
   companyId: string;
   type: 'location' | 'agency';
+  // Agregando activeLocation para que coincida con el uso en el guard
+  activeLocation?: string; 
+  locationId?: string;
 }
+
 export interface GhlPlatformAttachment {
   url: string;
   fileName?: string;
   type?: string;
 }
 export interface MessageStatusPayload {
-  status?: 'delivered' | 'read' | 'failed' | 'pending';
+  status?: 'delivered' | 'read' | 'failed' | 'pending' | 'sent';
   error?: any;
 }
 export interface GhlPlatformMessage {
@@ -111,3 +117,4 @@ export interface GhlContact {
 export interface GhlContactUpsertResponse {
   contact: GhlContact;
 }
+
