@@ -11,7 +11,13 @@ export class EvolutionApiWebhookGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = (request.headers['x-evolution-token'] || request.headers['x-webhook-token']) as string;
+    let token = (request.headers['x-evolution-token'] || request.headers['x-webhook-token']) as string | undefined;
+    if (!token) {
+      token = request.query.token as string | undefined;
+    }
+    if (!token && request.body) {
+      token = (request.body as any).webhook_token as string | undefined;
+    }
     const secret = this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET');
 
     // Si el secreto no está configurado en el servidor, rechaza la petición por seguridad.
