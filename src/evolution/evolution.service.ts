@@ -19,7 +19,7 @@ export class EvolutionService {
       const response$ = this.http.post(
         url,
         { to, text: message },
-        { headers: { Authorization: `Bearer ${instanceToken}` } },
+        { headers: { apikey: instanceToken } }, // Corregido para usar apikey si es el estándar
       );
       const response = await lastValueFrom(response$);
       return response.data;
@@ -31,12 +31,19 @@ export class EvolutionService {
     }
   }
 
-  async getInstanceStatus(instanceToken: string) {
-    const url = `${this.baseUrl}/instance/status`;
+  /**
+   * CORREGIDO: Verifica el estado de la conexión de una instancia.
+   * Utiliza el endpoint oficial /instance/connectionState/{instanceName}
+   * y el header 'apikey' según la documentación.
+   * @param instanceToken - El API Token de la instancia.
+   * @param instanceName - El nombre (ID) de la instancia a verificar.
+   */
+  async getInstanceStatus(instanceToken: string, instanceName: string) {
+    const url = `${this.baseUrl}/instance/connectionState/${instanceName}`;
 
     try {
       const response$ = this.http.get(url, {
-        headers: { Authorization: `Bearer ${instanceToken}` },
+        headers: { apikey: instanceToken },
       });
       const response = await lastValueFrom(response$);
       return response.data;
@@ -58,7 +65,7 @@ export class EvolutionService {
 
     try {
       const response$ = this.http.put(url, payload, {
-        headers: { Authorization: `Bearer ${instanceToken}` },
+        headers: { apikey: instanceToken }, // Corregido para usar apikey
       });
       await lastValueFrom(response$);
     } catch (error) {
