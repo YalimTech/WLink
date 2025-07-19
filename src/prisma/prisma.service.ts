@@ -1,9 +1,9 @@
 // src/prisma/prisma.service.ts
 
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { PrismaClient, Prisma, User, Instance, InstanceState } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { StorageProvider, Settings } from '../evolutionapi';
-import { UserCreateData, UserUpdateData } from '../types';
+import { User, Instance, InstanceState, UserCreateData, UserUpdateData } from '../types';
 
 export function parseId(id: string | number | bigint): string {
   return id.toString();
@@ -32,7 +32,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, Storage
   }
 
   // --- MÉTODOS DE INSTANCIA (CORREGIDOS PARA INCLUIR 'user') ---
-  async createInstance(data: Prisma.InstanceCreateInput): Promise<Instance & { user: User }> {
+  async createInstance(data: any): Promise<Instance & { user: User }> {
     return this.instance.create({ data, include: { user: true } });
   }
 
