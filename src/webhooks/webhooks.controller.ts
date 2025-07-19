@@ -100,7 +100,7 @@ export class WebhooksController {
       }
       
       if (ghlWebhook.type === 'SMS' && (ghlWebhook.message || ghlWebhook.attachments?.length)) {
-        await this.evolutionApiService.handlePlatformWebhook(ghlWebhook, instanceId);
+        await this.evolutionApiService.handlePlatformWebhook(ghlWebhook, instanceId!);
       }
 
     } catch (error) {

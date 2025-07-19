@@ -136,24 +136,28 @@ export class EvolutionApiService extends BaseAdapter<
     }
   }
 
-  public async createEvolutionApiInstanceForUser(userId: string, instanceId: string, apiToken: string, name?: string): Promise<Instance> {
+  public async createEvolutionApiInstanceForUser(
+    userId: string,
+    instanceId: string,
+    apiToken: string,
+    name?: string,
+  ): Promise<Instance> {
     const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
     if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
 
-    // ✅ CORRECCIÓN: buscar instanceName antes de validar
+    // Look up instance name for display purposes
     let instanceName = instanceId;
     try {
-      const { data } = await this.evolutionService.fetchInstances(apiToken);
-      const match = data.find((i: any) => i.id === instanceId);
-      if (!match) throw new Error('Instance ID not found in fetched list');
-      instanceName = match.name;
+      const instances = await this.evolutionService.fetchInstances(apiToken);
+      const match = instances.find((i: any) => i.id === instanceId || i.id?.toString?.() === instanceId);
+      if (match) instanceName = match.name;
     } catch (err) {
       this.logger.error(`Failed to fetch instance name for ${instanceId}`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
 
     try {
-      await this.evolutionService.getInstanceStatus(apiToken, instanceName);
+      await this.evolutionService.getInstanceStatus(apiToken, instanceId);
     } catch (err) {
       this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceId}.`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
@@ -165,7 +169,7 @@ export class EvolutionApiService extends BaseAdapter<
       user: {
         connect: { id: userId },
       },
-      name: name || `Evolution ${instanceId.substring(0, 8)}`,
+      name: name || `Evolution ${instanceName}`,
       stateInstance: 'authorized',
       settings: {},
     });
@@ -174,7 +178,7 @@ export class EvolutionApiService extends BaseAdapter<
     try {
       await this.evolutionService.configureWebhooks(apiToken, webhookUrl);
     } catch (err) {
-      this.logger.error(`Failed to configure webhooks for ${instanceId}.`, err);
+      this.logger.error(`Failed to configure webhooks for ${instanceName}.`, err);
     }
 
     return newInstance;

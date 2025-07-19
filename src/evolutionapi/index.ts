@@ -1,7 +1,6 @@
 // src/evolutionapi/index.ts
 
 import { User, Instance, InstanceState, UserCreateData, UserUpdateData } from '../types';
-import { Prisma } from '@prisma/client';
 import { ExecutionContext, Logger, CanActivate } from '@nestjs/common';
 import { Request } from 'express';
 

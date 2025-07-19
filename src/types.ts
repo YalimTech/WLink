@@ -1,11 +1,33 @@
 // src/types.ts
 
 import { Request } from 'express';
-import { Prisma, User as PrismaUser, Instance as PrismaInstance } from '@prisma/client';
 
-export { InstanceState } from '@prisma/client';
-export type User = PrismaUser;
-export type Instance = PrismaInstance;
+export enum InstanceState {
+  notAuthorized = 'notAuthorized',
+  authorized = 'authorized',
+  yellowCard = 'yellowCard',
+  blocked = 'blocked',
+  starting = 'starting',
+}
+
+export interface User {
+  id: string;
+  companyId?: string | null;
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiresAt?: Date | null;
+}
+
+export interface Instance {
+  id: bigint;
+  idInstance: string;
+  name?: string | null;
+  apiTokenInstance: string;
+  stateInstance?: InstanceState | null;
+  userId: string;
+  settings?: any;
+  createdAt?: Date;
+}
 
 // --- DTOs (Data Transfer Objects) para las peticiones HTTP ---
 export interface CreateInstanceDto {
@@ -19,8 +41,8 @@ export interface UpdateInstanceDto {
 }
 
 // --- Tipos para la creación y actualización en Prisma ---
-export type UserCreateData = Prisma.UserCreateInput;
-export type UserUpdateData = Prisma.UserUpdateInput;
+export interface UserCreateData extends User {}
+export interface UserUpdateData extends Partial<User> {}
 
 // --- Interfaces para Webhooks de Evolution API ---
 export interface MessageKey {

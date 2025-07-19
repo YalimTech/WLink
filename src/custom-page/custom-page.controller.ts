@@ -154,7 +154,7 @@ export class CustomPageController {
                 <form id="instanceForm">
                   <div class="form-group">
                     <label for="instanceId">Instance ID</label>
-                    <input type="text" id="instanceId" name="instanceId" placeholder="e.g., my-instance-name" required>
+                    <input type="text" id="instanceId" name="instanceId" placeholder="e.g., 41ef815d-8c..." required>
                   </div>
                   <div class="form-group">
                     <label for="apiToken">API Token</label>
