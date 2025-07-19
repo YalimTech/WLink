@@ -1,5 +1,5 @@
 // src/evolution/evolution.service.ts
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -7,12 +7,17 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class EvolutionService {
   private readonly baseUrl: string;
+  private readonly logger = new Logger(EvolutionService.name);
 
   constructor(
     private readonly http: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.baseUrl = this.configService.get<string>('EVOLUTION_API_URL')!;
+    const apiUrl = this.configService.get<string>('EVOLUTION_API_URL');
+    if (!apiUrl) {
+      throw new Error('EVOLUTION_API_URL is not configured');
+    }
+    this.baseUrl = apiUrl;
   }
 
   async sendMessage(instanceToken: string, to: string, message: string) {
@@ -60,6 +65,9 @@ export class EvolutionService {
     // El endpoint para configurar webhooks por instancia usa el NOMBRE de la instancia
     const url = `${this.baseUrl}/webhook/instance/${instanceName}`;
     const secret = this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET');
+    if (!secret) {
+      throw new Error('EVOLUTION_WEBHOOK_SECRET is not configured');
+    }
 
     const payload = {
       url: webhookUrl,
@@ -81,6 +89,11 @@ export class EvolutionService {
       });
       await lastValueFrom(response$);
     } catch (error) {
+      const status = error?.response?.status;
+      const message = error?.response?.data;
+      this.logger.error(
+        `Failed to configure webhooks: ${status} - ${JSON.stringify(message)}`,
+      );
       throw new HttpException(
         'Error configuring webhooks',
         HttpStatus.BAD_REQUEST,

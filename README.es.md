@@ -1,7 +1,24 @@
 # WLink Bridge
 
 ## Introducción
-WLink Bridge es un servicio que conecta Evolution API con GoHighLevel. La integración requiere diversas variables de entorno, incluida `EVOLUTION_CONSOLE_URL` para apuntar a la consola de Evolution y `EVOLUTION_WEBHOOK_SECRET` para proteger los webhooks entrantes. Consulta `.env.example` para ver la lista completa de variables.
+WLink Bridge es un servicio que conecta Evolution API con GoHighLevel. La integración requiere diversas variables de entorno, incluida `EVOLUTION_CONSOLE_URL` para apuntar a la consola de Evolution. Las variables `EVOLUTION_API_URL` y `EVOLUTION_WEBHOOK_SECRET` deben estar definidas antes de iniciar la aplicación o ésta generará un error. Consulta `.env.example` para ver la lista completa de variables.
+
+## Secreto del Webhook
+
+La variable `EVOLUTION_WEBHOOK_SECRET` debe coincidir con el secreto configurado para tu webhook en la consola de Evolution. Este valor se utiliza para verificar que las solicitudes de webhook provienen realmente de Evolution.
+
+Ejemplo de configuración:
+
+```dotenv
+# .env
+EVOLUTION_WEBHOOK_SECRET="mi-secreto-webhook"
+```
+
+En la configuración de Evolution API define el mismo valor para el secreto del webhook:
+
+```text
+Webhook secret: mi-secreto-webhook
+```
 
 Todas las IDs de instancia se almacenan como cadenas para adecuarse al esquema de Prisma. Las funciones auxiliares convierten los identificadores numéricos en cadenas antes de las consultas a la base de datos. Al conectar una nueva instancia de Evolution es necesario proporcionar el `instanceId` junto con el token de API. El servicio valida estas credenciales antes de guardarlas.
 

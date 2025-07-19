@@ -1,5 +1,5 @@
 // src/webhooks/guards/evolution-api-webhook.guard.ts
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, ForbiddenException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
@@ -9,9 +9,17 @@ export class EvolutionApiWebhookGuard implements CanActivate {
     private readonly configService: ConfigService,
   ) {}
 
+  private readonly logger = new Logger(EvolutionApiWebhookGuard.name);
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = (request.headers['x-evolution-token'] || request.headers['x-webhook-token']) as string;
+    let token = (request.headers['x-evolution-token'] || request.headers['x-webhook-token']) as string | undefined;
+    if (!token) {
+      token = request.query.token as string | undefined;
+    }
+    if (!token && request.body) {
+      token = (request.body as any).webhook_token as string | undefined;
+    }
     const secret = this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET');
 
     // Si el secreto no está configurado en el servidor, rechaza la petición por seguridad.
@@ -21,6 +29,7 @@ export class EvolutionApiWebhookGuard implements CanActivate {
 
     // Compara el token de la petición con el secreto del servidor.
     if (token !== secret) {
+      this.logger.warn('Webhook token mismatch');
       throw new UnauthorizedException('Invalid webhook token.');
     }
 
