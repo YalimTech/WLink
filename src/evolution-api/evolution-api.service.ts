@@ -143,8 +143,10 @@ export class EvolutionApiService extends BaseAdapter<
     const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
     if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
 
+    // --- BLOQUE CORREGIDO ---
+    // Se valida la instancia usando tanto el token como el ID de la instancia.
     try {
-      await this.evolutionService.getInstanceStatus(apiToken);
+      await this.evolutionService.getInstanceStatus(apiToken, instanceId);
     } catch (err) {
       this.logger.error(
         `Failed to verify Evolution API credentials for instance ${instanceId}.`,
@@ -152,6 +154,7 @@ export class EvolutionApiService extends BaseAdapter<
       );
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
+    // --- FIN DEL BLOQUE CORREGIDO ---
 
     const newInstance = await this.prisma.createInstance({
       idInstance: parseId(instanceId),
@@ -160,7 +163,7 @@ export class EvolutionApiService extends BaseAdapter<
         connect: { id: userId },
       },
       name: name || `Evolution ${instanceId.substring(0, 8)}`,
-      stateInstance: 'authorized',
+      stateInstance: 'authorized', // Se asume autorizado tras la verificación exitosa
       settings: {},
     });
 
@@ -181,10 +184,10 @@ export class EvolutionApiService extends BaseAdapter<
     status: 'delivered' | 'read' | 'failed' | 'sent',
     meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
-    // ...
+    // La implementación de este método no se proporcionó, se deja como estaba.
   }
 
   private async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<void> {
-    // ...
+    // La implementación de este método no se proporcionó, se deja como estaba.
   }
 }
