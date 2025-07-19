@@ -19,7 +19,7 @@ export class EvolutionService {
       const response$ = this.http.post(
         url,
         { to, text: message },
-        { headers: { apikey: instanceToken } }, // Corregido para usar apikey si es el estándar
+        { headers: { apikey: instanceToken } },
       );
       const response = await lastValueFrom(response$);
       return response.data;
@@ -65,7 +65,7 @@ export class EvolutionService {
 
     try {
       const response$ = this.http.put(url, payload, {
-        headers: { apikey: instanceToken }, // Corregido para usar apikey
+        headers: { apikey: instanceToken },
       });
       await lastValueFrom(response$);
     } catch (error) {
