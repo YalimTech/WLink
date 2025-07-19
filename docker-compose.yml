@@ -16,6 +16,7 @@ services:
       - GHL_CONVERSATION_PROVIDER_ID=${GHL_CONVERSATION_PROVIDER_ID}
       - APP_URL=${APP_URL}
       - GHL_SHARED_SECRET=${GHL_SHARED_SECRET}
+      - EVOLUTION_WEBHOOK_SECRET=${EVOLUTION_WEBHOOK_SECRET}
     command: sh -c "npx prisma migrate deploy && npm run build && npm run start:prod"
     restart: unless-stopped
 
