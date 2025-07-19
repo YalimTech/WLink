@@ -74,9 +74,6 @@ export class EvolutionApiService extends BaseAdapter<
     return response.data;
   }
 
-  /**
-   * Busca un contacto de GHL por su número de teléfono.
-   */
   public async getGhlContactByPhone(locationId: string, phone: string): Promise<GhlContact | null> {
     const httpClient = await this.getHttpClient(locationId);
     try {
@@ -143,18 +140,24 @@ export class EvolutionApiService extends BaseAdapter<
     const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
     if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
 
-    // --- BLOQUE CORREGIDO ---
-    // Se valida la instancia usando tanto el token como el ID de la instancia.
+    // ✅ CORRECCIÓN: buscar instanceName antes de validar
+    let instanceName = instanceId;
     try {
-      await this.evolutionService.getInstanceStatus(apiToken, instanceId);
+      const { data } = await this.evolutionService.fetchInstances(apiToken);
+      const match = data.find((i: any) => i.id === instanceId);
+      if (!match) throw new Error('Instance ID not found in fetched list');
+      instanceName = match.name;
     } catch (err) {
-      this.logger.error(
-        `Failed to verify Evolution API credentials for instance ${instanceId}.`,
-        err,
-      );
+      this.logger.error(`Failed to fetch instance name for ${instanceId}`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
-    // --- FIN DEL BLOQUE CORREGIDO ---
+
+    try {
+      await this.evolutionService.getInstanceStatus(apiToken, instanceName);
+    } catch (err) {
+      this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceId}.`, err);
+      throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
+    }
 
     const newInstance = await this.prisma.createInstance({
       idInstance: parseId(instanceId),
@@ -163,7 +166,7 @@ export class EvolutionApiService extends BaseAdapter<
         connect: { id: userId },
       },
       name: name || `Evolution ${instanceId.substring(0, 8)}`,
-      stateInstance: 'authorized', // Se asume autorizado tras la verificación exitosa
+      stateInstance: 'authorized',
       settings: {},
     });
 
@@ -177,17 +180,17 @@ export class EvolutionApiService extends BaseAdapter<
     return newInstance;
   }
 
-  // --- Métodos de apoyo (sin cambios) ---
   public async updateGhlMessageStatus(
     locationId: string,
     messageId: string,
     status: 'delivered' | 'read' | 'failed' | 'sent',
     meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
-    // La implementación de este método no se proporcionó, se deja como estaba.
+    // pendiente implementación
   }
 
   private async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<void> {
-    // La implementación de este método no se proporcionó, se deja como estaba.
+    // pendiente implementación
   }
 }
+
