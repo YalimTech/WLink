@@ -28,3 +28,4 @@ export class EvolutionApiWebhookGuard implements CanActivate {
     return true;
   }
 }
+
