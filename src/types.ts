@@ -1,38 +1,18 @@
 // src/types.ts
 
 import { Request } from 'express';
+// Importa los tipos directamente desde el cliente de Prisma generado
+import { User as PrismaUser, Instance as PrismaInstance, InstanceState, Prisma } from '@prisma/client';
 
-export enum InstanceState {
-  notAuthorized = 'notAuthorized',
-  authorized = 'authorized',
-  yellowCard = 'yellowCard',
-  blocked = 'blocked',
-  starting = 'starting',
-}
-
-export interface User {
-  id: string;
-  companyId?: string | null;
-  accessToken: string;
-  refreshToken: string;
-  tokenExpiresAt?: Date | null;
-}
-
-export interface Instance {
-  id: bigint;
-  idInstance: string;
-  name?: string | null;
-  apiTokenInstance: string;
-  stateInstance?: InstanceState | null;
-  userId: string;
-  settings?: any;
-  createdAt?: Date;
-}
+// Re-exporta los tipos de Prisma para usarlos en toda la aplicación
+export { InstanceState };
+export type User = PrismaUser;
+export type Instance = PrismaInstance;
 
 // --- DTOs (Data Transfer Objects) para las peticiones HTTP ---
 export interface CreateInstanceDto {
   locationId: string;
-  instanceId: string; // Corregido: de instanceName a instanceId
+  instanceId: string;
   apiToken: string;
   name?: string;
 }
@@ -41,8 +21,9 @@ export interface UpdateInstanceDto {
 }
 
 // --- Tipos para la creación y actualización en Prisma ---
-export interface UserCreateData extends User {}
-export interface UserUpdateData extends Partial<User> {}
+// Usa los tipos generados por Prisma para mayor seguridad
+export type UserCreateData = Prisma.UserCreateInput;
+export type UserUpdateData = Prisma.UserUpdateInput;
 
 // --- Interfaces para Webhooks de Evolution API ---
 export interface MessageKey {
@@ -69,16 +50,14 @@ export interface EvolutionWebhook {
 // --- Interfaces para GoHighLevel (GHL) ---
 export interface AuthReq extends Request {
   locationId: string;
-  // Agregando userData opcional para que esté disponible en el request si es necesario
-  userData?: GhlUserData; 
+  userData?: GhlUserData;
 }
 
 export interface GhlUserData {
   userId: string;
   companyId: string;
   type: 'location' | 'agency';
-  // Agregando activeLocation para que coincida con el uso en el guard
-  activeLocation?: string; 
+  activeLocation?: string;
   locationId?: string;
 }
 
