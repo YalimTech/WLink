@@ -20,4 +20,5 @@ describe('extractPhoneNumberFromVCard', () => {
     const vcard = 'EMAIL:test@example.com';
     expect(extractPhoneNumberFromVCard(vcard)).toBeUndefined();
   });
+
 });
