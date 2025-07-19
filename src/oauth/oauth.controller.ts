@@ -28,10 +28,10 @@ export class GhlOauthController {
   @Get('callback')
   async callback(
     @Query()
-    query: GhlOAuthCallbackDto & { idInstance?: string; apiTokenInstance?: string },
+    query: GhlOAuthCallbackDto & { instanceName?: string; apiTokenInstance?: string },
     @Res() res: Response,
   ) {
-    const { code, idInstance, apiTokenInstance } = query;
+    const { code, instanceName, apiTokenInstance } = query;
     this.logger.log(`GHL OAuth callback received. Code: ${code ? 'present' : 'MISSING'}`);
 
     if (!code) {
@@ -100,14 +100,14 @@ export class GhlOauthController {
 
       this.logger.log(`Stored/updated GHL tokens for Location: ${respLocationId}`);
 
-      if (idInstance && apiTokenInstance) {
+      if (instanceName && apiTokenInstance) {
         try {
           await this.evolutionApiService.createEvolutionApiInstanceForUser(
             respLocationId,
-            idInstance,
+            instanceName,
             apiTokenInstance,
           );
-          this.logger.log(`Evolution API instance ${idInstance} stored for location ${respLocationId}`);
+          this.logger.log(`Evolution API instance ${instanceName} stored for location ${respLocationId}`);
         } catch (err) {
           this.logger.error(`Failed to store Evolution API instance: ${err.message}`);
         }
