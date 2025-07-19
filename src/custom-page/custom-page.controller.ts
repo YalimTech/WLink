@@ -38,8 +38,6 @@ export class CustomPageController {
     @Res() res: Response,
   ) {
     try {
-      // --- CORRECCIÓN CRÍTICA ---
-      // Se usa "GHL_SHARED_SECRET" para que coincida con las variables de entorno.
       const sharedSecret = this.configService.get<string>('GHL_SHARED_SECRET');
       if (!sharedSecret) {
         return res
@@ -154,7 +152,7 @@ export class CustomPageController {
                 <form id="instanceForm">
                   <div class="form-group">
                     <label for="instanceId">Instance ID</label>
-                    <input type="text" id="instanceId" name="instanceId" placeholder="e.g., 41ef815d-8c..." required>
+                    <input type="text" id="instanceId" name="instanceId" placeholder="e.g., a1b2c3d4-e5f6-7890-g1h2-i3j4k5l6m7n8" required>
                   </div>
                   <div class="form-group">
                     <label for="apiToken">API Token</label>
@@ -338,7 +336,7 @@ export class CustomPageController {
               
               const payload = {
                 locationId: this.locationId,
-                instanceName: form.instanceName.value,
+                instanceId: form.instanceId.value,
                 apiToken: form.apiToken.value,
                 name: form.instanceAlias.value
               };
