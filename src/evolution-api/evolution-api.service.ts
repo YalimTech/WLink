@@ -162,42 +162,44 @@ export class EvolutionApiService extends BaseAdapter<
     apiToken: string,
     name?: string,
   ): Promise<Instance> {
-    // 1. Validar que la instancia no exista en nuestra base de datos
     const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
     if (existing) {
       throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
     }
 
-    // 2. Validar credenciales contra la API de Evolution y obtener el nombre real de la instancia
     let fetchedInstanceName: string;
     try {
       const status = await this.evolutionService.getInstanceStatus(apiToken, instanceId);
-      fetchedInstanceName = status?.instance?.instanceName || `Evolution Instance`;
+      fetchedInstanceName = status?.instance?.instanceName;
+      if (!fetchedInstanceName) {
+        // Si el nombre no se puede obtener, lanzamos un error claro.
+        throw new Error('Instance name could not be retrieved from status check.');
+      }
     } catch (err) {
       this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceId}.`, err.message);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
 
-    // 3. Crear la instancia en la base de datos
     const newInstance = await this.prisma.createInstance({
       idInstance: parseId(instanceId),
       apiTokenInstance: apiToken,
       user: {
         connect: { id: userId },
       },
-      name: name || fetchedInstanceName, // Usar el alias del usuario o el nombre real de la instancia
+      name: name || fetchedInstanceName,
       stateInstance: 'authorized',
       settings: {},
     });
 
-    // 4. Configurar Webhooks
     const webhookUrl = `${this.configService.get<string>('APP_URL')}/webhooks/evolution`;
     try {
-      await this.evolutionService.configureWebhooks(apiToken, webhookUrl);
+      // CORRECCIÓN: Pasamos el nombre real de la instancia (fetchedInstanceName) a la función de configurar webhooks.
+      await this.evolutionService.configureWebhooks(fetchedInstanceName, apiToken, webhookUrl);
       this.logger.log(`Webhooks configured for instance ${instanceId}`);
     } catch (err) {
       this.logger.error(`Failed to configure webhooks for ${instanceId}.`, err.message);
-      // No lanzamos un error aquí para permitir que la instancia se cree incluso si los webhooks fallan
+      // No lanzamos un error aquí para permitir que la instancia se cree incluso si los webhooks fallan,
+      // pero es importante registrar el error.
     }
 
     return newInstance;
