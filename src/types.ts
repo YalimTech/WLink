@@ -10,7 +10,7 @@ export type Instance = PrismaInstance;
 // --- DTOs (Data Transfer Objects) para las peticiones HTTP ---
 export interface CreateInstanceDto {
   locationId: string;
-  instanceId: string;
+  instanceName: string;
   apiToken: string;
   name?: string;
 }
