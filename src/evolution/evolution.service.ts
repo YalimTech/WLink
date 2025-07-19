@@ -33,10 +33,10 @@ export class EvolutionService {
   }
 
   /**
-   * Verifica el estado de la instancia usando su nombre (no su ID interno).
+   * Checks the connection status of an Evolution instance by its ID.
    */
-  async getInstanceStatus(instanceToken: string, instanceName: string) {
-    const url = `${this.baseUrl}/instance/connectionState/${instanceName}`;
+  async getInstanceStatus(instanceToken: string, instanceId: string) {
+    const url = `${this.baseUrl}/instance/connectionState/${instanceId}`;
 
     try {
       const response$ = this.http.get(url, {
@@ -82,7 +82,7 @@ export class EvolutionService {
   /**
    * ✅ Nuevo método: Obtiene todas las instancias asociadas al token del usuario.
    */
-  async fetchInstances(instanceToken: string): Promise<{ name: string }[]> {
+  async fetchInstances(instanceToken: string): Promise<{ id: string; name: string }[]> {
     const url = `${this.baseUrl}/instances`;
 
     try {
@@ -90,7 +90,12 @@ export class EvolutionService {
         headers: { apikey: instanceToken },
       });
       const response = await lastValueFrom(response$);
-      return response.data.instances ?? [];
+      return (
+        response.data.instances?.map((i: any) => ({
+          id: i.id?.toString?.() || String(i.id),
+          name: i.name,
+        })) ?? []
+      );
     } catch (error) {
       throw new HttpException(
         'Error fetching instance list',
