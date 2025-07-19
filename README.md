@@ -1,6 +1,6 @@
 # WLink Bridge
 
-This service acts as a bridge between Evolution API and GoHighLevel. The integration requires several environment variables, including `EVOLUTION_CONSOLE_URL` to point to the Evolution API console. See `.env.example` for the complete list.
+This service acts as a bridge between Evolution API and GoHighLevel. The integration requires several environment variables, including `EVOLUTION_CONSOLE_URL` to point to the Evolution API console and `EVOLUTION_WEBHOOK_SECRET` to secure incoming webhooks. See `.env.example` for the complete list.
 
 
 All instance IDs are stored as strings to match the Prisma schema. Helper
