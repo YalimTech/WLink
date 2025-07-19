@@ -12,7 +12,7 @@ export class EvolutionService {
     private readonly http: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.baseUrl = this.configService.get<string>('EVOLUTION_API_URL');
+    this.baseUrl = this.configService.get<string>('EVOLUTION_API_URL')!;
   }
 
   async sendMessage(instanceToken: string, to: string, message: string) {
