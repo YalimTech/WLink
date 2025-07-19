@@ -1,5 +1,5 @@
 // src/evolution/evolution.service.ts
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class EvolutionService {
   private readonly baseUrl: string;
+  private readonly logger = new Logger(EvolutionService.name);
 
   constructor(
     private readonly http: HttpService,
@@ -81,6 +82,11 @@ export class EvolutionService {
       });
       await lastValueFrom(response$);
     } catch (error) {
+      const status = error?.response?.status;
+      const message = error?.response?.data;
+      this.logger.error(
+        `Failed to configure webhooks: ${status} - ${JSON.stringify(message)}`,
+      );
       throw new HttpException(
         'Error configuring webhooks',
         HttpStatus.BAD_REQUEST,
