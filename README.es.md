@@ -3,7 +3,8 @@
 ## Introducción
 WLink Bridge es un servicio que conecta Evolution API con GoHighLevel. La integración requiere diversas variables de entorno, incluida `EVOLUTION_CONSOLE_URL` para apuntar a la consola de Evolution. Consulta `.env.example` para ver la lista completa de variables.
 
-Todas las IDs de instancia se almacenan como cadenas para adecuarse al esquema de Prisma. Cuando agregues una nueva instancia de Evolution debes indicar su **nombre de instancia** tal como aparece en la consola de Evolution. El servicio obtendrá automáticamente su ID antes de guardarla.
+Todas las IDs de instancia se almacenan como cadenas para adecuarse al esquema de Prisma. Las funciones auxiliares convierten los identificadores numéricos en cadenas antes de las consultas a la base de datos. Al conectar una nueva instancia de Evolution es necesario proporcionar el `instanceId` junto con el token de API. El servicio valida estas credenciales antes de guardarlas.
+
 
 ## Configuración
 1. Copia el archivo `.env.example` a `.env` y ajusta los valores.
