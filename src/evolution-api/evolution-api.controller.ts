@@ -54,15 +54,15 @@ export class EvolutionApiController {
     }
 
     // Validación de campos requeridos.
-    if (!dto.instanceId || !dto.apiToken) {
-        throw new HttpException('Instance ID and API Token are required fields.', HttpStatus.BAD_REQUEST);
+    if (!dto.instanceName || !dto.apiToken) {
+        throw new HttpException('Instance Name and API Token are required fields.', HttpStatus.BAD_REQUEST);
     }
 
     try {
       // La lógica de validación y creación de la instancia ya está en el servicio.
       const instance = await this.evolutionApiService.createEvolutionApiInstanceForUser(
         dto.locationId,
-        dto.instanceId,
+        dto.instanceName,
         dto.apiToken,
         dto.name,
       );

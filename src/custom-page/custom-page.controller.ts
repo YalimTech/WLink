@@ -161,8 +161,8 @@ export class CustomPageController {
                     <input type="text" id="apiToken" name="apiToken" placeholder="Your Evolution API token" required>
                   </div>
                   <div class="form-group">
-                    <label for="instanceName">Instance Nickname (optional)</label>
-                    <input type="text" id="instanceName" name="instanceName" placeholder="e.g., Sales Team WhatsApp">
+                    <label for="instanceAlias">Instance Nickname (optional)</label>
+                    <input type="text" id="instanceAlias" name="instanceAlias" placeholder="e.g., Sales Team WhatsApp">
                   </div>
                   <button type="submit" id="submitBtn" class="btn">Add Instance</button>
                 </form>
@@ -338,9 +338,9 @@ export class CustomPageController {
               
               const payload = {
                 locationId: this.locationId,
-                instanceId: form.instanceId.value,
+                instanceName: form.instanceName.value,
                 apiToken: form.apiToken.value,
-                name: form.instanceName.value
+                name: form.instanceAlias.value
               };
 
               submitBtn.disabled = true;
