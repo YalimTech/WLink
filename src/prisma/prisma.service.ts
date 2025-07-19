@@ -1,7 +1,7 @@
 // src/prisma/prisma.service.ts
 
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { StorageProvider, Settings } from '../evolutionapi';
 import { User, Instance, InstanceState, UserCreateData, UserUpdateData } from '../types';
 
@@ -31,8 +31,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, Storage
     return this.user.update({ where: { id }, data });
   }
 
-  // --- MÉTODOS DE INSTANCIA (CORREGIDOS PARA INCLUIR 'user') ---
-  async createInstance(data: any): Promise<Instance & { user: User }> {
+  // --- MÉTODOS DE INSTANCIA ---
+  async createInstance(data: Prisma.InstanceCreateInput): Promise<Instance & { user: User }> {
     return this.instance.create({ data, include: { user: true } });
   }
 
@@ -60,7 +60,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, Storage
   }
 
   async updateInstanceSettings(idInstance: string, settings: Settings): Promise<Instance & { user: User }> {
-    return this.instance.update({ where: { idInstance: parseId(idInstance) }, data: { settings: settings || {} }, include: { user: true } });
+    const settingsData = (settings || {}) as Prisma.JsonObject;
+    return this.instance.update({ where: { idInstance: parseId(idInstance) }, data: { settings: settingsData }, include: { user: true } });
   }
 
   // --- OTROS MÉTODOS ---
