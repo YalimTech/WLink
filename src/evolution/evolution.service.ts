@@ -12,7 +12,11 @@ export class EvolutionService {
     private readonly http: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.baseUrl = this.configService.get<string>('EVOLUTION_API_URL')!;
+    const apiUrl = this.configService.get<string>('EVOLUTION_API_URL');
+    if (!apiUrl) {
+      throw new Error('EVOLUTION_API_URL is not configured');
+    }
+    this.baseUrl = apiUrl;
   }
 
   async sendMessage(instanceToken: string, to: string, message: string) {
@@ -60,6 +64,9 @@ export class EvolutionService {
     // El endpoint para configurar webhooks por instancia usa el NOMBRE de la instancia
     const url = `${this.baseUrl}/webhook/instance/${instanceName}`;
     const secret = this.configService.get<string>('EVOLUTION_WEBHOOK_SECRET');
+    if (!secret) {
+      throw new Error('EVOLUTION_WEBHOOK_SECRET is not configured');
+    }
 
     const payload = {
       url: webhookUrl,
