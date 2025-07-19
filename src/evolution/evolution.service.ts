@@ -1,3 +1,4 @@
+// src/evolution/evolution.service.ts
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
@@ -32,11 +33,7 @@ export class EvolutionService {
   }
 
   /**
-   * CORREGIDO: Verifica el estado de la conexión de una instancia.
-   * Utiliza el endpoint oficial /instance/connectionState/{instanceName}
-   * y el header 'apikey' según la documentación.
-   * @param instanceToken - El API Token de la instancia.
-   * @param instanceName - El nombre (ID) de la instancia a verificar.
+   * Verifica el estado de la instancia usando su nombre (no su ID interno).
    */
   async getInstanceStatus(instanceToken: string, instanceName: string) {
     const url = `${this.baseUrl}/instance/connectionState/${instanceName}`;
@@ -48,10 +45,16 @@ export class EvolutionService {
       const response = await lastValueFrom(response$);
       return response.data;
     } catch (error) {
-      throw new HttpException('Error checking instance status', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Error checking instance status',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
+  /**
+   * Configura los webhooks oficiales de Evolution API.
+   */
   async configureWebhooks(instanceToken: string, webhookUrl: string) {
     const url = `${this.baseUrl}/instance/webhook`;
     const payload = {
@@ -69,7 +72,31 @@ export class EvolutionService {
       });
       await lastValueFrom(response$);
     } catch (error) {
-      throw new HttpException('Error configuring webhooks', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Error configuring webhooks',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * ✅ Nuevo método: Obtiene todas las instancias asociadas al token del usuario.
+   */
+  async fetchInstances(instanceToken: string): Promise<{ name: string }[]> {
+    const url = `${this.baseUrl}/instances`;
+
+    try {
+      const response$ = this.http.get(url, {
+        headers: { apikey: instanceToken },
+      });
+      const response = await lastValueFrom(response$);
+      return response.data.instances ?? [];
+    } catch (error) {
+      throw new HttpException(
+        'Error fetching instance list',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 }
+
