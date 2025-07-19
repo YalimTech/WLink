@@ -7,7 +7,16 @@ import { EvolutionApiTransformer } from './evolution-api.transformer';
 import { PrismaService, parseId } from '../prisma/prisma.service';
 import { EvolutionService } from '../evolution/evolution.service';
 import { GhlWebhookDto } from './dto/ghl-webhook.dto';
-import { User, Instance, GhlPlatformMessage, EvolutionWebhook, GhlContact, GhlContactUpsertRequest, GhlContactUpsertResponse, MessageStatusPayload } from '../types';
+import {
+  User,
+  Instance,
+  GhlPlatformMessage,
+  EvolutionWebhook,
+  GhlContact,
+  GhlContactUpsertRequest,
+  GhlContactUpsertResponse,
+  MessageStatusPayload,
+} from '../types';
 
 @Injectable()
 export class EvolutionApiService extends BaseAdapter<
@@ -37,12 +46,18 @@ export class EvolutionApiService extends BaseAdapter<
     }
 
     let currentAccessToken = userWithTokens.accessToken;
-    const willExpireSoon = userWithTokens.tokenExpiresAt && new Date(userWithTokens.tokenExpiresAt).getTime() < Date.now() + 5 * 60 * 1000;
+    const willExpireSoon =
+      userWithTokens.tokenExpiresAt && new Date(userWithTokens.tokenExpiresAt).getTime() < Date.now() + 5 * 60 * 1000;
     if (willExpireSoon) {
       this.logger.log(`Access token for User ${ghlUserId} is expiring. Refreshing...`);
       try {
         const newTokens = await this.refreshGhlAccessToken(userWithTokens.refreshToken);
-        await this.prisma.updateUserTokens(ghlUserId, newTokens.access_token, newTokens.refresh_token, new Date(Date.now() + newTokens.expires_in * 1000));
+        await this.prisma.updateUserTokens(
+          ghlUserId,
+          newTokens.access_token,
+          newTokens.refresh_token,
+          new Date(Date.now() + newTokens.expires_in * 1000),
+        );
         currentAccessToken = newTokens.access_token;
       } catch (err) {
         throw new HttpException(`Unable to refresh GHL token. Please re-authorize.`, HttpStatus.UNAUTHORIZED);
@@ -88,7 +103,12 @@ export class EvolutionApiService extends BaseAdapter<
     }
   }
 
-  private async findOrCreateGhlContact(locationId: string, phone: string, name: string, instanceId: string): Promise<GhlContact> {
+  private async findOrCreateGhlContact(
+    locationId: string,
+    phone: string,
+    name: string,
+    instanceId: string,
+  ): Promise<GhlContact> {
     const httpClient = await this.getHttpClient(locationId);
     const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
     const tag = `whatsapp-instance-${instanceId}`;
@@ -151,20 +171,25 @@ export class EvolutionApiService extends BaseAdapter<
       const instances = await this.evolutionService.fetchInstances(apiToken);
       const match = instances.find((i: any) => i.id === instanceId || i.id?.toString?.() === instanceId);
       if (match) instanceName = match.name;
+
     } catch (err) {
-      this.logger.error(`Failed to fetch instance name for ${instanceId}`, err);
+      this.logger.error(`Failed to fetch instance id for ${instanceName}`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
+
+    // ensure not duplicated
+    const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(foundId) } });
+    if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
 
     try {
       await this.evolutionService.getInstanceStatus(apiToken, instanceId);
     } catch (err) {
-      this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceId}.`, err);
+      this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceName}.`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
 
     const newInstance = await this.prisma.createInstance({
-      idInstance: parseId(instanceId),
+      idInstance: parseId(foundId),
       apiTokenInstance: apiToken,
       user: {
         connect: { id: userId },
@@ -197,4 +222,3 @@ export class EvolutionApiService extends BaseAdapter<
     // pendiente implementación
   }
 }
-
