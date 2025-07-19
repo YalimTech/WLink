@@ -162,48 +162,42 @@ export class EvolutionApiService extends BaseAdapter<
     apiToken: string,
     name?: string,
   ): Promise<Instance> {
+    // 1. Validar que la instancia no exista en nuestra base de datos
     const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
-    if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
+    if (existing) {
+      throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
+    }
 
-    // Look up instance name for display purposes
-    let instanceName = instanceId;
+    // 2. Validar credenciales contra la API de Evolution y obtener el nombre real de la instancia
+    let fetchedInstanceName: string;
     try {
-      const instances = await this.evolutionService.fetchInstances(apiToken);
-      const match = instances.find((i: any) => i.id === instanceId || i.id?.toString?.() === instanceId);
-      if (match) instanceName = match.name;
-
+      const status = await this.evolutionService.getInstanceStatus(apiToken, instanceId);
+      fetchedInstanceName = status?.instance?.instanceName || `Evolution Instance`;
     } catch (err) {
-      this.logger.error(`Failed to fetch instance id for ${instanceName}`, err);
+      this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceId}.`, err.message);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
     }
 
-    // ensure not duplicated
-    const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(foundId) } });
-    if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
-
-    try {
-      await this.evolutionService.getInstanceStatus(apiToken, instanceId);
-    } catch (err) {
-      this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceName}.`, err);
-      throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
-    }
-
+    // 3. Crear la instancia en la base de datos
     const newInstance = await this.prisma.createInstance({
-      idInstance: parseId(foundId),
+      idInstance: parseId(instanceId),
       apiTokenInstance: apiToken,
       user: {
         connect: { id: userId },
       },
-      name: name || `Evolution ${instanceName}`,
+      name: name || fetchedInstanceName, // Usar el alias del usuario o el nombre real de la instancia
       stateInstance: 'authorized',
       settings: {},
     });
 
+    // 4. Configurar Webhooks
     const webhookUrl = `${this.configService.get<string>('APP_URL')}/webhooks/evolution`;
     try {
       await this.evolutionService.configureWebhooks(apiToken, webhookUrl);
+      this.logger.log(`Webhooks configured for instance ${instanceId}`);
     } catch (err) {
-      this.logger.error(`Failed to configure webhooks for ${instanceName}.`, err);
+      this.logger.error(`Failed to configure webhooks for ${instanceId}.`, err.message);
+      // No lanzamos un error aquí para permitir que la instancia se cree incluso si los webhooks fallan
     }
 
     return newInstance;
@@ -215,10 +209,12 @@ export class EvolutionApiService extends BaseAdapter<
     status: 'delivered' | 'read' | 'failed' | 'sent',
     meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
-    // pendiente implementación
+    // Implementación pendiente
+    this.logger.log(`Updating message ${messageId} status to ${status} for location ${locationId}`);
   }
 
   private async postInboundMessageToGhl(locationId: string, message: GhlPlatformMessage): Promise<void> {
-    // pendiente implementación
+    // Implementación pendiente
+    this.logger.log(`Posting inbound message to GHL for location ${locationId}: ${message.message}`);
   }
 }
