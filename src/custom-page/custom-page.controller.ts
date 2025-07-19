@@ -153,8 +153,8 @@ export class CustomPageController {
               <div class="section"><h2>➕ Add New Instance</h2>
                 <form id="instanceForm">
                   <div class="form-group">
-                    <label for="instanceName">Instance Name (from Evolution)</label>
-                    <input type="text" id="instanceName" name="instanceName" placeholder="e.g., my-instance-name" required>
+                    <label for="instanceId">Instance ID</label>
+                    <input type="text" id="instanceId" name="instanceId" placeholder="e.g., 41ef815d-8c..." required>
                   </div>
                   <div class="form-group">
                     <label for="apiToken">API Token</label>

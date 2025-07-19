@@ -158,17 +158,20 @@ export class EvolutionApiService extends BaseAdapter<
 
   public async createEvolutionApiInstanceForUser(
     userId: string,
-    instanceName: string,
+    instanceId: string,
     apiToken: string,
     name?: string,
   ): Promise<Instance> {
-    // Find instance by name from Evolution API
-    let foundId: string;
+    const existing = await this.prisma.instance.findUnique({ where: { idInstance: parseId(instanceId) } });
+    if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
+
+    // Look up instance name for display purposes
+    let instanceName = instanceId;
     try {
       const instances = await this.evolutionService.fetchInstances(apiToken);
-      const match = instances.find((i: any) => i.name === instanceName);
-      if (!match || !match.id) throw new Error('Instance name not found in fetched list');
-      foundId = String(match.id);
+      const match = instances.find((i: any) => i.id === instanceId || i.id?.toString?.() === instanceId);
+      if (match) instanceName = match.name;
+
     } catch (err) {
       this.logger.error(`Failed to fetch instance id for ${instanceName}`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
@@ -179,7 +182,7 @@ export class EvolutionApiService extends BaseAdapter<
     if (existing) throw new HttpException('An instance with this ID already exists.', HttpStatus.CONFLICT);
 
     try {
-      await this.evolutionService.getInstanceStatus(apiToken, instanceName);
+      await this.evolutionService.getInstanceStatus(apiToken, instanceId);
     } catch (err) {
       this.logger.error(`Failed to verify Evolution API credentials for instance ${instanceName}.`, err);
       throw new HttpException('Invalid Evolution API credentials.', HttpStatus.BAD_REQUEST);
