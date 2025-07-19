@@ -53,16 +53,16 @@ export class EvolutionApiController {
         throw new HttpException('Context and payload locationId mismatch. Unauthorized.', HttpStatus.FORBIDDEN);
     }
 
-    // Validación de campos requeridos.
-    if (!dto.instanceName || !dto.apiToken) {
-        throw new HttpException('Instance Name and API Token are required fields.', HttpStatus.BAD_REQUEST);
+    // Validación de campos requeridos (corregido a instanceId).
+    if (!dto.instanceId || !dto.apiToken) {
+        throw new HttpException('Instance ID and API Token are required fields.', HttpStatus.BAD_REQUEST);
     }
 
     try {
       // La lógica de validación y creación de la instancia ya está en el servicio.
       const instance = await this.evolutionApiService.createEvolutionApiInstanceForUser(
         dto.locationId,
-        dto.instanceName,
+        dto.instanceId, // Corregido: se pasa instanceId
         dto.apiToken,
         dto.name,
       );
@@ -110,7 +110,6 @@ export class EvolutionApiController {
       throw new HttpException('Instance not found or not authorized for this location', HttpStatus.FORBIDDEN);
     }
     
-    // La llamada ahora es correcta porque 'updateInstanceName' ya existe en PrismaService.
     const updatedInstance = await this.prisma.updateInstanceName(instanceId, dto.name);
 
     return {
@@ -119,3 +118,4 @@ export class EvolutionApiController {
     };
   }
 }
+
