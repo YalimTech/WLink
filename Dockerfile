@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 
-# --- build de frontend (ya lo tienes) ---
+# --- build de frontend ---
 FROM node:20-alpine AS build-frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -8,11 +8,13 @@ RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-# --- build de backend (ya lo tienes) ---
+# --- build de backend ---
 FROM node:20-alpine AS build-backend
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci
+COPY backend/prisma ./prisma
+RUN npx prisma generate
 COPY backend/ ./
 RUN npm run build
 
@@ -27,6 +29,7 @@ WORKDIR /app
 COPY --from=build-backend /app/backend/dist ./backend/dist
 COPY --from=build-backend /app/backend/package.json ./backend/package.json
 COPY --from=build-backend /app/backend/node_modules ./backend/node_modules
+COPY --from=build-backend /app/backend/prisma ./backend/prisma
 
 # Copiamos frontend compilado y públicos (para Next runtime)
 WORKDIR /app/frontend
