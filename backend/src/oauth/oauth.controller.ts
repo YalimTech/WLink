@@ -4,12 +4,13 @@ import {
   Get,
   Query,
   Res,
+  Req,
   HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { GhlOAuthCallbackDto } from './dto/ghl-oauth-callback.dto';
@@ -30,6 +31,7 @@ export class GhlOauthController {
 
   @Get('callback')
   async callback(
+    @Req() req: Request,
     @Query()
     query: GhlOAuthCallbackDto & {
       instanceName?: string;
@@ -113,7 +115,7 @@ export class GhlOauthController {
       }
       
       // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
-      const successPageUrl = `${appUrl}/oauth-success`; 
+      const successPageUrl = `${req.protocol}://${req.hostname}/app/whatsapp/oauth-success`;
       this.logger.log(`Redirigiendo a la página de éxito del frontend: ${successPageUrl}`);
       return res.redirect(HttpStatus.FOUND, successPageUrl);
       
