@@ -4,7 +4,7 @@
 FROM node:20-alpine AS build-frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
@@ -34,7 +34,7 @@ COPY --from=build-frontend /app/frontend/.next ./.next
 COPY --from=build-frontend /app/frontend/public ./public
 COPY --from=build-frontend /app/frontend/package.json ./package.json
 COPY --from=build-frontend /app/frontend/package-lock.json ./package-lock.json
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # NGINX + Supervisor
 WORKDIR /app
