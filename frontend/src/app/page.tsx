@@ -1,24 +1,23 @@
-// wlink/frontend/src/app/page.tsx
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+// Importa el componente CustomPage directamente.
+// Esto asume que 'custom-page/page.tsx' exporta su componente principal como default.
+import CustomPage from './custom-page/page';
 
+/**
+ * Componente de la página principal (root) de la aplicación.
+ *
+ * Este componente ahora renderiza directamente el contenido de CustomPage,
+ * eliminando la necesidad de una redirección del lado del cliente desde la raíz.
+ * Esto asegura que cuando los usuarios accedan a la URL base de la aplicación
+ * (por ejemplo, /app/whatsapp), vean inmediatamente el contenido deseado
+ * sin pasos intermedios de redirección.
+ */
 export default function Page() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirige inmediatamente a la página principal de la aplicación.
-    router.replace('/custom-page');
-  }, [router]);
-
-  // Se muestra un mensaje de carga mientras se produce la redirección.
   return (
-    <div className="bg-gray-100 p-4 sm:p-6 min-h-screen flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
-        <h1 className="text-2xl font-bold text-gray-800">Redirigiendo...</h1>
-        <p className="text-gray-600">Serás llevado a la página principal de WLink.</p>
-      </div>
-    </div>
+    // Renderiza el componente CustomPage directamente.
+    // Esto hace que el contenido de CustomPage sea la página de inicio
+    // cuando se accede a la ruta base de la aplicación Next.js.
+    <CustomPage />
   );
 }
