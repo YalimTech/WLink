@@ -114,11 +114,12 @@ export class GhlOauthController {
         }
       }
       
-      // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
-      const host = req.get('host');
-      const successPageUrl = `${req.protocol}://${host}/app/whatsapp/oauth-success`;
-      this.logger.log(`Redirigiendo a la página de éxito del frontend: ${successPageUrl}`);
-      return res.redirect(HttpStatus.FOUND, successPageUrl);
+      // CAMBIO CRUCIAL: Redirigir al frontend de Next.js usando variable de entorno
+      const base = this.configService.get<string>('FRONTEND_BASE_URL')!;
+      const successUrl = new URL('/whatsapp/oauth-success', base).toString();
+      const finalUrl = successUrl.replace('http://', 'https://');
+      this.logger.log(`Redirigiendo a la página de éxito del frontend: ${finalUrl}`);
+      return res.redirect(HttpStatus.FOUND, finalUrl);
       
     } catch (error: any) {
       this.logger.error('Error exchanging GHL OAuth code for tokens:', error);
