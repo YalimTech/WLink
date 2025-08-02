@@ -115,7 +115,8 @@ export class GhlOauthController {
       }
       
       // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
-      const successPageUrl = `${req.protocol}://${req.hostname}/app/whatsapp/oauth-success`;
+      const host = req.get('host');
+      const successPageUrl = `${req.protocol}://${host}/app/whatsapp/oauth-success`;
       this.logger.log(`Redirigiendo a la página de éxito del frontend: ${successPageUrl}`);
       return res.redirect(HttpStatus.FOUND, successPageUrl);
       
