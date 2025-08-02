@@ -14,6 +14,7 @@ describe('createEvolutionApiInstanceForUser', () => {
   beforeEach(() => {
     prisma = {
       getInstanceByNameAndToken: jest.fn().mockResolvedValue(null),
+      getInstance: jest.fn().mockResolvedValue(null),
       createInstance: jest.fn(),
     } as Partial<PrismaService>;
     evo = {
