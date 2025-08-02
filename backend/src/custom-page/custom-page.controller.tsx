@@ -13,7 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config'; // Importa ConfigService para acceder a variables de entorno
 import * as CryptoJS from 'crypto-js'; // Importa CryptoJS para la desencriptación
 
-@Controller('app') // El controlador está mapeado a la ruta base /app
+@Controller('api') // El controlador está mapeado a la ruta base /api
 export class CustomPageController {
   constructor(
     private readonly logger: Logger, // Servicio para logging
@@ -21,7 +21,7 @@ export class CustomPageController {
     private readonly configService: ConfigService, // Servicio para acceder a la configuración y variables de entorno
   ) {}
 
-  @Post('decrypt-user-data') // Este método maneja las peticiones POST a /app/decrypt-user-data
+  @Post('decrypt-user-data') // Maneja las peticiones POST a /api/decrypt-user-data
   @HttpCode(HttpStatus.OK) // Devuelve un código de estado 200 OK si todo va bien
   async decryptUserData(
     @Body() body: { encryptedData: string }, // Espera un cuerpo de petición con la propiedad 'encryptedData'

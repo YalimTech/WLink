@@ -156,7 +156,7 @@ function CustomPageContent() {
       // CORREGIDO: Usar '/api/decrypt-user-data' para coincidir con la configuración de Nginx.
       const res: DecryptResponse = await makeApiRequest('/api/decrypt-user-data', {
         method: 'POST',
-        body: JSON.stringify({ data: encData }),
+        body: JSON.stringify({ encryptedData: encData }),
       });
       if (res.success && res.locationId && res.userData) {
         setEncrypted(encData);
