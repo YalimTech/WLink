@@ -15,6 +15,9 @@ import { json, urlencoded } from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Habilitar la confianza en el proxy para que NestJS reconozca el protocolo HTTPS
+  app.set('trust proxy', 1);
+
   // Configura la aplicación para usar pipes de validación, seguridad y JSON.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
