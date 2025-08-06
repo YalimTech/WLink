@@ -1,33 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   basePath: '/app',
-  assetPrefix: '/app',
-  experimental: { serverActions: {} },
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'googleusercontent.com',
-        port: '',
-        pathname: '/file_content/*',
-      },
-    ],
-  },
-  async headers() {
+  output: 'standalone',
+  async rewrites() {
     return [
       {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value:
-              "frame-ancestors 'self' https://*.gohighlevel.com https://*.hl-platform.com",
-          },
-        ],
+        source: '/api/:path*', // Reenvía /api/ al backend
+        destination: `http://localhost:3000/api/:path*`,
+      },
+      {
+        source: '/webhooks/:path*', // Reenvía /webhooks/ al backend
+        destination: `http://localhost:3000/webhooks/:path*`,
       },
     ];
   },
 };
+
 export default nextConfig;

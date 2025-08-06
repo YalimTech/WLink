@@ -1,42 +1,52 @@
-# syntax=docker/dockerfile:1.4
-# --- Etapa 1: Build de frontend ---
-FROM node:20-alpine AS frontend-builder
-WORKDIR /usr/src/app
-COPY frontend/package*json /
-RUN npm install
-COPY frontend/ /
-RUN npm run build
-# --- Etapa 2: Build de backend ---
+
+# Stage 1: Backend Builder
 FROM node:20-alpine AS backend-builder
-WORKDIR /usr/src/app
-COPY backend/package*json /
-RUN npm ci
-COPY backend/prisma /prisma
+WORKDIR /usr/src/app/backend
+COPY backend/package.json backend/package-lock.json ./ # Copia solo los archivos de dependencias primero
+RUN npm ci --omit=dev
+COPY backend/prisma ./prisma/
+COPY backend/src ./src/
+COPY backend/nest-cli.json backend/tsconfig.build.json backend/tsconfig.json ./ # Copia archivos de configuración y código fuente
 RUN npx prisma generate
-COPY backend/ /
 RUN npm run build
-# --- Etapa 3: Imagen final ---
-FROM node:18-alpine
-# Instala NGINX y Supervisor
-RUN apk add --no-cache nginx supervisor
-# Establece el directorio de trabajo principal
+
+# Stage 2: Frontend Builder
+FROM node:20-alpine AS frontend-builder
+WORKDIR /usr/src/app/frontend
+COPY frontend/package.json frontend/package-lock.json ./ # Copia solo los archivos de dependencias primero
+RUN npm ci --omit=dev
+COPY frontend/next.config.mjs frontend/postcss.config.js frontend/tailwind.config.js frontend/tsconfig.json ./ # Copia archivos de configuración
+COPY frontend/public ./public/
+COPY frontend/src ./src/
+RUN npm run build
+
+# Stage 3: Final Stage
+FROM alpine:latest
 WORKDIR /usr/src/app
-# ---- Copia el Backend ----
-COPY --from=backend-builder /usr/src/app/dist /dist
-COPY --from=backend-builder /usr/src/app/node_modules /node_modules
-COPY --from=backend-builder /usr/src/app/package*json /
-COPY --from=backend-builder /usr/src/app/prisma /prisma
-# ---- Copia el Frontend ----
-COPY --from=frontend-builder /usr/src/app/next /next
-COPY --from=frontend-builder /usr/src/app/public /public
-COPY --from=frontend-builder /usr/src/app/packagejson /packagejson
-COPY --from=frontend-builder /usr/src/app/nextconfigmjs /nextconfigmjs
-# ---- Copia las configuraciones de Servidores ----
+
+# Instala NGINX, Supervisor y Node.js/npm (para ejecutar las apps)
+RUN apk add --no-cache nginx supervisor nodejs npm
+
+# Copia la configuración de NGINX
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY supervisord/supervisord.conf /etc/supervisor/confd/supervisord.conf
-# Crea los directorios de logs para NGINX
-RUN mkdir -p /var/log/nginx && touch /var/log/nginx/access.log /var/log/nginx/error.log
-# Expone el puerto 80 (el que usará NGINX)
+
+# Copia la configuración de Supervisor
+COPY supervisord/supervisord.conf /etc/supervisord.conf
+
+# Copia los artefactos del backend
+COPY --from=backend-builder /usr/src/app/backend/dist ./backend/dist
+COPY --from=backend-builder /usr/src/app/backend/node_modules ./backend/node_modules
+COPY --from=backend-builder /usr/src/app/backend/package.json ./backend/package.json
+COPY --from=backend-builder /usr/src/app/backend/prisma ./backend/prisma
+
+# Copia los artefactos del frontend
+COPY --from=frontend-builder /usr/src/app/frontend/.next ./frontend/.next
+COPY --from=frontend-builder /usr/src/app/frontend/node_modules ./frontend/node_modules
+COPY --from=frontend-builder /usr/src/app/frontend/package.json ./frontend/package.json
+COPY --from=frontend-builder /usr/src/app/frontend/public ./frontend/public
+
+# Expone el puerto 80 (NGINX)
 EXPOSE 80
-# Comando final para iniciar Supervisor, que gestionará todos los servicios
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/confd/supervisord.conf"]
+
+# Comando para ejecutar supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
