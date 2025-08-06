@@ -115,8 +115,15 @@ export class GhlOauthController {
       }
       
       // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
-      const host = req.get('host');
-      const successPageUrl = `${this.configService.get<string>('APP_URL')}/app/oauth-success`;
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      if (!frontendUrl) {
+        this.logger.error('FRONTEND_URL is not defined in environment variables.');
+        throw new HttpException(
+          'The application is not configured correctly. Missing FRONTEND_URL.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+      const successPageUrl = `${frontendUrl}/oauth-success`;
       this.logger.log(`Redirigiendo a la página de éxito del frontend: ${successPageUrl}`);
       return res.redirect(HttpStatus.FOUND, successPageUrl);
       
