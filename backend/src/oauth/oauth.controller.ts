@@ -116,7 +116,7 @@ export class GhlOauthController {
       
       // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
       const host = req.get('host');
-      const successPageUrl = `${this.configService.get<string>('APP_URL')}/oauth-success`;
+      const successPageUrl = `${this.configService.get<string>('APP_URL')}/app/oauth-success`;
       this.logger.log(`Redirigiendo a la página de éxito del frontend: ${successPageUrl}`);
       return res.redirect(HttpStatus.FOUND, successPageUrl);
       
