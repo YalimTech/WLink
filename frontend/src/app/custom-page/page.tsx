@@ -43,6 +43,11 @@ interface ModalState {
   onCancel: (() => void) | null;
 }
 
+interface QrApiResponse {
+  type: 'qr' | 'code';
+  data: string;
+}
+
 // Componente principal de la página, ahora envuelto en Suspense
 export default function CustomPage() {
   return (
@@ -326,7 +331,7 @@ function CustomPageContent() {
     qrInstanceIdRef.current = id;
     try {
       console.log('Attempting to fetch QR for instance ID: ' + id);
-      const res = await makeApiRequest('/api/qr/' + id);
+      const res: QrApiResponse = await makeApiRequest('/api/qr/' + id);
       console.log('QR API response for ' + id + ':', res);
       console.log('QR response type: ' + res.type + ', data starts with: ' + (res.data ? res.data.substring(0, 50) : 'N/A'));
       if (res.type === 'qr') {
