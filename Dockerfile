@@ -19,33 +19,36 @@ COPY backend/ ./
 RUN npm run build
 
 # --- imagen final ---
-FROM node:20-alpine
-
-# NGINX
+# Stage 3: Final image
+FROM node:18-alpine
+# Crea el directorio de trabajo principal
+WORKDIR /usr/src/app
+# Instala NGINX y Supervisor
 RUN apk add --no-cache nginx supervisor
-RUN npm install -g pnpm
-WORKDIR /app
-
-# Copiamos backend compilado
-COPY --from=build-backend /app/backend/dist ./backend/dist
-COPY --from=build-backend /app/backend/package.json ./backend/package.json
-COPY --from=build-backend /app/backend/node_modules ./backend/node_modules
-COPY --from=build-backend /app/backend/prisma ./backend/prisma
-
-# Copiamos frontend compilado y públicos (para Next runtime)
-WORKDIR /app/frontend
-COPY --from=build-frontend /app/frontend/.next ./.next
-COPY --from=build-frontend /app/frontend/public ./public
-COPY --from=build-frontend /app/frontend/package.json ./package.json
-COPY --from=build-frontend /app/frontend/package-lock.json ./package-lock.json
-RUN npm install --omit=dev
-
-# NGINX + Supervisor
-WORKDIR /app
+# ---- Configuración del Backend ----
+# Crea el directorio para el backend
+RUN mkdir -p /usr/src/app/backend
+WORKDIR /usr/src/app/backend
+# Copia los archivos compilados del backend
+COPY --from=build-backend /usr/src/app/dist /dist
+COPY --from=build-backend /usr/src/app/node_modules /node_modules
+COPY --from=build-backend /usr/src/app/package*json /
+# ---- Configuración del Frontend ----
+# Crea el directorio para el frontend
+RUN mkdir -p /usr/src/app/frontend
+WORKDIR /usr/src/app/frontend
+# Copia los archivos compilados del frontend
+COPY --from=build-frontend /app/frontend/.next /next
+COPY --from=build-frontend /app/frontend/public /public
+COPY --from=build-frontend /app/frontend/package*json /
+COPY --from=build-frontend /app/frontend/next.config.mjs /
+# ---- Configuración de Servidores ----
+# Vuelve al directorio principal para copiar las configuraciones
+WORKDIR /usr/src/app
+# Copia las configuraciones de NGINX y Supervisor
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY supervisord/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-RUN mkdir -p /var/log/nginx && touch /var/log/nginx/access.log /var/log/nginx/error.log
-
-EXPOSE 3000
-CMD ["/usr/bin/supervisord","-c","/etc/supervisor/conf.d/supervisord.conf"]
+# Expone el puerto 80
+EXPOSE 80
+# Comando final para iniciar Supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/confd/supervisord.conf"]
