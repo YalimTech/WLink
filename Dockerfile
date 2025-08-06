@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:14
+# syntax=docker/dockerfile:1.4
 # --- Etapa 1: Build de frontend ---
 FROM node:20-alpine AS frontend-builder
 WORKDIR /usr/src/app
@@ -39,4 +39,4 @@ RUN mkdir -p /var/log/nginx && touch /var/log/nginx/accesslog /var/log/nginx/err
 # Expone el puerto 80 (el que usará NGINX)
 EXPOSE 80
 # Comando final para iniciar Supervisor, que gestionará todos los servicios
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/confd/supervisordconf"]
+CMD ["/usr/bin/supervisord" "-c" "/etc/supervisor/confd/supervisordconf"]
