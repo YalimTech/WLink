@@ -32,11 +32,11 @@ COPY --from=frontend-builder /usr/src/app/public /public
 COPY --from=frontend-builder /usr/src/app/packagejson /packagejson
 COPY --from=frontend-builder /usr/src/app/nextconfigmjs /nextconfigmjs
 # ---- Copia las configuraciones de Servidores ----
-COPY nginx/nginxconf /etc/nginx/nginxconf
-COPY supervisord/supervisordconf /etc/supervisor/confd/supervisordconf
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+COPY supervisord/supervisord.conf /etc/supervisor/confd/supervisord.conf
 # Crea los directorios de logs para NGINX
-RUN mkdir -p /var/log/nginx && touch /var/log/nginx/accesslog /var/log/nginx/errorlog
+RUN mkdir -p /var/log/nginx && touch /var/log/nginx/access.log /var/log/nginx/error.log
 # Expone el puerto 80 (el que usará NGINX)
 EXPOSE 80
 # Comando final para iniciar Supervisor, que gestionará todos los servicios
-CMD ["/usr/bin/supervisord" "-c" "/etc/supervisor/confd/supervisordconf"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/confd/supervisord.conf"]
