@@ -21,7 +21,7 @@ import { join } from 'path';
     CustomPageModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'dist', 'public'),
-      serveRoot: '/app/whatsapp',
+      serveRoot: '/app',
       serveStaticOptions: {
         index: false,
       },

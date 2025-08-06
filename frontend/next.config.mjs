@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/app/whatsapp',
-  assetPrefix: '/app/whatsapp',
+  basePath: '/app',
+  assetPrefix: '/app',
   experimental: { serverActions: {} },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
