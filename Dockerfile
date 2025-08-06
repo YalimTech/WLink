@@ -3,7 +3,7 @@
 FROM node:20-alpine AS backend-builder
 WORKDIR /usr/src/app/backend
 COPY backend/package.json backend/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY backend/prisma ./prisma/
 COPY backend/src ./src/
 COPY backend/nest-cli.json backend/tsconfig.build.json backend/tsconfig.json ./
@@ -14,7 +14,7 @@ RUN npm run build
 FROM node:20-alpine AS frontend-builder
 WORKDIR /usr/src/app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY frontend/next.config.mjs frontend/postcss.config.js frontend/tailwind.config.js frontend/tsconfig.json ./
 COPY frontend/public ./public/
 COPY frontend/src ./src/
