@@ -137,7 +137,7 @@ function CustomPageContent() {
         headers: {
           'Content-Type': 'application/json',
           'X-GHL-Context': encrypted,
-          ...options.headers,
+          ...(options.headers as Record<string, string> || {}),
         },
         data: options.body,
       });
