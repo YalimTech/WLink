@@ -60,7 +60,7 @@ export class GhlOauthController {
       client_secret: clientSecret,
       grant_type: 'authorization_code',
       code: code,
-      redirect_uri: `${appUrl}/oauth/callback`,
+      redirect_uri: `${appUrl}/app/oauth/callback`,
       user_type: 'Location',
     });
 
