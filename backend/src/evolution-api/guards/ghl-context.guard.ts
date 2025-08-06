@@ -5,10 +5,10 @@ import {
   ExecutionContext,
   UnauthorizedException,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as CryptoJS from 'crypto-js';
-import { GhlUserData } from '../../types';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as CryptoJS from "crypto-js";
+import { GhlUserData } from "../../types";
 
 @Injectable()
 export class GhlContextGuard implements CanActivate {
@@ -18,14 +18,14 @@ export class GhlContextGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const encryptedData = request.headers['x-ghl-context'];
+    const encryptedData = request.headers["x-ghl-context"];
 
     if (!encryptedData) {
-      throw new UnauthorizedException('No GHL context provided');
+      throw new UnauthorizedException("No GHL context provided");
     }
 
     try {
-      const sharedSecret = this.configService.get<string>('GHL_SHARED_SECRET')!;
+      const sharedSecret = this.configService.get<string>("GHL_SHARED_SECRET")!;
       const decrypted = CryptoJS.AES.decrypt(
         encryptedData,
         sharedSecret,
@@ -33,9 +33,9 @@ export class GhlContextGuard implements CanActivate {
 
       if (!decrypted) {
         this.logger.warn(
-          'GHL context decryption failed. Check your GHL_SHARED_SECRET.',
+          "GHL context decryption failed. Check your GHL_SHARED_SECRET.",
         );
-        throw new UnauthorizedException('Invalid GHL context');
+        throw new UnauthorizedException("Invalid GHL context");
       }
 
       const userData: GhlUserData = JSON.parse(decrypted);
@@ -47,10 +47,12 @@ export class GhlContextGuard implements CanActivate {
 
       if (!locationId) {
         this.logger.warn({
-          message: 'No activeLocation property found in decrypted GHL payload.',
+          message: "No activeLocation property found in decrypted GHL payload.",
           decryptedPayload: userData,
         });
-        throw new UnauthorizedException('No active location ID in user context');
+        throw new UnauthorizedException(
+          "No active location ID in user context",
+        );
       }
 
       // Se adjunta el locationId a la petición, como lo hacía tu código original.
@@ -58,12 +60,11 @@ export class GhlContextGuard implements CanActivate {
       request.locationId = locationId;
       return true;
     } catch (error) {
-      this.logger.error('Error processing GHL context', error.stack);
+      this.logger.error("Error processing GHL context", error.stack);
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new UnauthorizedException('Invalid or malformed GHL context');
+      throw new UnauthorizedException("Invalid or malformed GHL context");
     }
   }
 }
-

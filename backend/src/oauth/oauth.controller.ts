@@ -8,17 +8,17 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Request, Response } from 'express';
-import axios from 'axios';
-import { PrismaService } from '../prisma/prisma.service';
-import { GhlOAuthCallbackDto } from './dto/ghl-oauth-callback.dto';
-import { EvolutionApiService } from '../evolution-api/evolution-api.service';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Request, Response } from "express";
+import axios from "axios";
+import { PrismaService } from "../prisma/prisma.service";
+import { GhlOAuthCallbackDto } from "./dto/ghl-oauth-callback.dto";
+import { EvolutionApiService } from "../evolution-api/evolution-api.service";
 
-@Controller('oauth')
+@Controller("oauth")
 export class GhlOauthController {
-  private readonly ghlServicesUrl = 'https://services.leadconnectorhq.com';
+  private readonly ghlServicesUrl = "https://services.leadconnectorhq.com";
   private readonly logger: Logger; // Declarado aquí
 
   constructor(
@@ -29,7 +29,7 @@ export class GhlOauthController {
     this.logger = new Logger(GhlOauthController.name); // Inicializado en el constructor
   }
 
-  @Get('callback')
+  @Get("callback")
   async callback(
     @Req() req: Request,
     @Query()
@@ -41,34 +41,36 @@ export class GhlOauthController {
     @Res() res: Response,
   ) {
     const { code, instanceName, token, customName } = query;
-    this.logger.log(`GHL OAuth callback recibido. Code: ${code ? 'present' : 'MISSING'}`);
+    this.logger.log(
+      `GHL OAuth callback recibido. Code: ${code ? "present" : "MISSING"}`,
+    );
 
     if (!code) {
-      this.logger.error('GHL OAuth callback missing code.');
+      this.logger.error("GHL OAuth callback missing code.");
       throw new HttpException(
-        'Invalid OAuth callback from GHL (missing code).',
+        "Invalid OAuth callback from GHL (missing code).",
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    const clientId = this.configService.get<string>('GHL_CLIENT_ID')!;
-    const clientSecret = this.configService.get<string>('GHL_CLIENT_SECRET')!;
-    const appUrl = this.configService.get<string>('APP_URL')!;
+    const clientId = this.configService.get<string>("GHL_CLIENT_ID")!;
+    const clientSecret = this.configService.get<string>("GHL_CLIENT_SECRET")!;
+    const appUrl = this.configService.get<string>("APP_URL")!;
 
     const tokenRequestBody = new URLSearchParams({
       client_id: clientId,
       client_secret: clientSecret,
-      grant_type: 'authorization_code',
+      grant_type: "authorization_code",
       code: code,
       redirect_uri: `${appUrl}/oauth/callback`,
-      user_type: 'Location',
+      user_type: "Location",
     });
 
     try {
       const tokenResponse = await axios.post(
         `${this.ghlServicesUrl}/oauth/token`,
         tokenRequestBody.toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
       );
 
       const {
@@ -81,9 +83,12 @@ export class GhlOauthController {
       } = tokenResponse.data;
 
       if (!respLocationId) {
-        this.logger.error('GHL Token response did not include locationId!', tokenResponse.data);
+        this.logger.error(
+          "GHL Token response did not include locationId!",
+          tokenResponse.data,
+        );
         throw new HttpException(
-          'Failed to get Location ID from GHL token response.',
+          "Failed to get Location ID from GHL token response.",
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -98,7 +103,9 @@ export class GhlOauthController {
         companyId: respCompanyId,
       });
 
-      this.logger.log(`Stored/updated GHL tokens for Location: ${respLocationId}`);
+      this.logger.log(
+        `Stored/updated GHL tokens for Location: ${respLocationId}`,
+      );
 
       if (instanceName && token && customName) {
         try {
@@ -108,31 +115,38 @@ export class GhlOauthController {
             token,
             customName,
           );
-          this.logger.log(`Evolution API instance '${instanceName}' (Custom Name: '${customName}') stored for location '${respLocationId}'`);
+          this.logger.log(
+            `Evolution API instance '${instanceName}' (Custom Name: '${customName}') stored for location '${respLocationId}'`,
+          );
         } catch (err: any) {
-          this.logger.error(`Failed to store Evolution API instance: ${err.message}`);
+          this.logger.error(
+            `Failed to store Evolution API instance: ${err.message}`,
+          );
         }
       }
-      
+
       // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      const frontendUrl = this.configService.get<string>("FRONTEND_URL");
       if (!frontendUrl) {
-        this.logger.error('FRONTEND_URL is not defined in environment variables.');
+        this.logger.error(
+          "FRONTEND_URL is not defined in environment variables.",
+        );
         throw new HttpException(
-          'The application is not configured correctly. Missing FRONTEND_URL.',
+          "The application is not configured correctly. Missing FRONTEND_URL.",
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
       const successPageUrl = `${frontendUrl}/oauth-success`;
-      this.logger.log(`Redirigiendo a la página de éxito del frontend: ${successPageUrl}`);
+      this.logger.log(
+        `Redirigiendo a la página de éxito del frontend: ${successPageUrl}`,
+      );
       return res.redirect(HttpStatus.FOUND, successPageUrl);
-      
     } catch (error: any) {
-      this.logger.error('Error exchanging GHL OAuth code for tokens:', error);
+      this.logger.error("Error exchanging GHL OAuth code for tokens:", error);
       const errorDesc =
         (error.response?.data as any)?.error_description ||
         (error.response?.data as any)?.error ||
-        'Unknown GHL OAuth error';
+        "Unknown GHL OAuth error";
       throw new HttpException(
         `Failed to obtain GHL tokens: ${errorDesc}`,
         error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,

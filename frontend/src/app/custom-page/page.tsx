@@ -2,6 +2,7 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import axios from 'axios';
 import Script from 'next/script';
 
@@ -458,7 +459,7 @@ function CustomPageContent() {
     console.log('QR useEffect triggered. showQr:', showQr, 'qr data present:', !!qr);
     if (showQr && qr && !qrLoading) {
       if (qr.startsWith('data:image')) {
-        setQrDisplayContent(<img src={qr} className="mx-auto max-w-full h-auto" />);
+                setQrDisplayContent(<Image src={qr} alt="QR Code" width={256} height={256} className="mx-auto max-w-full h-auto" />);
         console.log('QR rendered as image.');
       } else {
         console.error('Unexpected QR format in useEffect:', qr);
@@ -533,7 +534,7 @@ function CustomPageContent() {
       <Script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" strategy="lazyOnload" />
 
       <div className="flex flex-col items-center justify-center mb-6">
-        <img src="/wlink-icon.png" alt="WLink Icono" className="h-16 w-16 mb-2" />
+                <Image src="/wlink-icon.png" alt="WLink Icono" width={64} height={64} className="h-16 w-16 mb-2" />
         <h1 className="text-3xl font-bold text-center text-gray-800">WhatsApp Integration</h1>
         <p className="text-gray-500 text-center">Manage your instances with ease</p>
       </div>

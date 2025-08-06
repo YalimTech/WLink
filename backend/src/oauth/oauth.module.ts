@@ -10,5 +10,3 @@ import { EvolutionApiModule } from "../evolution-api/evolution-api.module";
   providers: [Logger],
 })
 export class OauthModule {}
-
-

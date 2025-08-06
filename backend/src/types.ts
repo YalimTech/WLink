@@ -1,17 +1,17 @@
 // src/types.ts
-import { Request } from 'express';
+import { Request } from "express";
 
 // =================================================================
 // TIPOS CENTRALES (Reflejan el schema.prisma)
 // =================================================================
 
 export type InstanceState =
-  | 'notAuthorized'
-  | 'qr_code'
-  | 'authorized'
-  | 'yellowCard'
-  | 'blocked'
-  | 'starting';
+  | "notAuthorized"
+  | "qr_code"
+  | "authorized"
+  | "yellowCard"
+  | "blocked"
+  | "starting";
 
 export interface User {
   // CAMBIO: Renombrado de 'id' a 'locationId' para concordancia con GHL
@@ -68,9 +68,16 @@ export interface UpdateInstanceDto {
 // =================================================================
 
 // CAMBIO: Actualizado para usar 'locationId' en lugar de 'id' en User
-export type UserCreateData = Omit<User, 'locationId' | 'createdAt' | 'updatedAt' | 'instances' | 'hasTokens'> & { locationId?: string };
-export type UserUpdateData = Partial<Omit<User, 'locationId' | 'createdAt' | 'updatedAt' | 'instances' | 'hasTokens'>>;
-
+export type UserCreateData = Omit<
+  User,
+  "locationId" | "createdAt" | "updatedAt" | "instances" | "hasTokens"
+> & { locationId?: string };
+export type UserUpdateData = Partial<
+  Omit<
+    User,
+    "locationId" | "createdAt" | "updatedAt" | "instances" | "hasTokens"
+  >
+>;
 
 // =================================================================
 // Interfaces para Webhooks de Evolution API
@@ -85,7 +92,11 @@ export interface MessageKey {
 export interface MessageData {
   key: MessageKey;
   pushName?: string;
-  message?: { conversation?: string; extendedTextMessage?: { text: string }; [key: string]: any; };
+  message?: {
+    conversation?: string;
+    extendedTextMessage?: { text: string };
+    [key: string]: any;
+  };
   messageTimestamp: number;
   [key: string]: any;
 }
@@ -93,7 +104,7 @@ export interface MessageData {
 export interface EvolutionWebhook {
   event: string;
   // El campo 'instance' del webhook de Evolution API corresponde a nuestro 'instanceName'
-  instance: string; 
+  instance: string;
   data: any;
   sender?: string;
   destination?: string;
@@ -112,9 +123,9 @@ export interface AuthReq extends Request {
 
 export interface GhlUserData {
   // CAMBIO: Renombrado de 'userId' a 'locationId' para concordancia con User.locationId
-  locationId: string; 
+  locationId: string;
   companyId: string;
-  type: 'location' | 'agency';
+  type: "location" | "agency";
   activeLocation?: string; // Este campo también es locationId en GHL
   firstName?: string;
   lastName?: string;
@@ -129,7 +140,7 @@ export interface GhlPlatformAttachment {
 }
 
 export interface MessageStatusPayload {
-  status?: 'delivered' | 'read' | 'failed' | 'pending' | 'sent';
+  status?: "delivered" | "read" | "failed" | "pending" | "sent";
   error?: any;
 }
 
@@ -138,7 +149,7 @@ export interface GhlPlatformMessage {
   locationId: string;
   phone?: string;
   message: string;
-  direction: 'inbound' | 'outbound';
+  direction: "inbound" | "outbound";
   attachments?: GhlPlatformAttachment[];
   timestamp?: Date;
 }

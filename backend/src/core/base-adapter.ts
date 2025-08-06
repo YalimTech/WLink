@@ -1,7 +1,12 @@
 // src/core/base-adapter.ts
 
-import { MessageTransformer, StorageProvider, NotFoundError, IntegrationError } from '../evolutionapi';
-import { Logger } from '@nestjs/common';
+import {
+  MessageTransformer,
+  StorageProvider,
+  NotFoundError,
+  IntegrationError,
+} from "../evolutionapi";
+import { Logger } from "@nestjs/common";
 
 export { MessageTransformer, StorageProvider, NotFoundError, IntegrationError };
 

@@ -1,14 +1,9 @@
 // src/evolution/evolution.service.ts
-import {
-  Injectable,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
-import { ConfigService } from '@nestjs/config';
-import { AxiosRequestConfig } from 'axios';
+import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { lastValueFrom } from "rxjs";
+import { ConfigService } from "@nestjs/config";
+import { AxiosRequestConfig } from "axios";
 
 @Injectable()
 export class EvolutionService {
@@ -20,11 +15,13 @@ export class EvolutionService {
     private readonly configService: ConfigService,
   ) {
     const rawUrl =
-      this.configService.get<string>('EVOLUTION_API_URL') ||
-      'https://evo.prixcenter.com';
-    this.baseUrl = rawUrl.replace(/\/$/, '');
+      this.configService.get<string>("EVOLUTION_API_URL") ||
+      "https://evo.prixcenter.com";
+    this.baseUrl = rawUrl.replace(/\/$/, "");
     // Log para confirmar que la URL base se está cargando correctamente al iniciar.
-    this.logger.log(`EvolutionService initialized with baseUrl: [${this.baseUrl}]`);
+    this.logger.log(
+      `EvolutionService initialized with baseUrl: [${this.baseUrl}]`,
+    );
   }
 
   /**
@@ -36,8 +33,8 @@ export class EvolutionService {
   private _getConfig(apiToken: string): AxiosRequestConfig {
     return {
       headers: {
-        'Content-Type': 'application/json',
-        'apikey': apiToken,
+        "Content-Type": "application/json",
+        apikey: apiToken,
       },
     };
   }
@@ -57,19 +54,26 @@ export class EvolutionService {
           url,
           {
             number: to,
-            options: { delay: 1200, presence: 'composing' },
+            options: { delay: 1200, presence: "composing" },
             textMessage: { text: message },
           },
           this._getConfig(instanceToken),
         ),
       );
     } catch (error) {
-      this.logger.error(`Error sending message via Evolution API: ${error.message}`, error.stack);
-      throw new HttpException('Error sending message via Evolution API', HttpStatus.BAD_REQUEST);
+      this.logger.error(
+        `Error sending message via Evolution API: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Error sending message via Evolution API",
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
-  async getInstanceStatus(instanceToken: string, instanceName: string) { // Ya usa instanceName
+  async getInstanceStatus(instanceToken: string, instanceName: string) {
+    // Ya usa instanceName
     const encodedName = encodeURIComponent(instanceName);
     const url = `${this.baseUrl}/instance/connectionState/${encodedName}`;
     try {
@@ -92,13 +96,16 @@ export class EvolutionService {
   ): Promise<boolean> {
     try {
       const status = await this.getInstanceStatus(instanceToken, instanceName);
-      if (status?.instance?.state) { // La respuesta correcta suele estar en `instance.state`
+      if (status?.instance?.state) {
+        // La respuesta correcta suele estar en `instance.state`
         this.logger.log(
           `✅ Instance ${instanceName} verified with state: ${status.instance.state}`,
         );
         return true;
       }
-      this.logger.warn(`Instance ${instanceName} validation returned unexpected status: ${JSON.stringify(status)}`);
+      this.logger.warn(
+        `Instance ${instanceName} validation returned unexpected status: ${JSON.stringify(status)}`,
+      );
       return false;
     } catch (error: any) {
       // ✅ CORREGIDO: Log de depuración mejorado.
@@ -118,7 +125,8 @@ export class EvolutionService {
     }
   }
 
-  async createInstance(globalApiToken: string, instanceName: string) { // Ya usa instanceName
+  async createInstance(globalApiToken: string, instanceName: string) {
+    // Ya usa instanceName
     const url = `${this.baseUrl}/instance/create`;
     try {
       const response = await lastValueFrom(
@@ -133,9 +141,12 @@ export class EvolutionService {
     } catch (error) {
       this.logger.error(
         `Error creating instance via Evolution API: ${error.message}`,
-        error.stack
+        error.stack,
       );
-      throw new HttpException('Error creating instance', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        "Error creating instance",
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
@@ -143,7 +154,7 @@ export class EvolutionService {
     instanceToken: string,
     instanceName: string, // Ya usa instanceName
     number?: string,
-  ): Promise<{ type: 'qr' | 'code'; data: string }> {
+  ): Promise<{ type: "qr" | "code"; data: string }> {
     const encodedName = encodeURIComponent(instanceName);
     let url = `${this.baseUrl}/instance/connect/${encodedName}`;
     if (number) url += `?number=${encodeURIComponent(number)}`;
@@ -154,62 +165,77 @@ export class EvolutionService {
       );
 
       const data = response.data || {};
-      this.logger.debug(`QR response for ${instanceName}: ${JSON.stringify(data)}`);
+      this.logger.debug(
+        `QR response for ${instanceName}: ${JSON.stringify(data)}`,
+      );
 
       // Prioriza el QR en base64 si está disponible
       const qr = data.base64 || data.qr || data.qrCode;
-      if (qr) return { type: 'qr', data: qr };
+      if (qr) return { type: "qr", data: qr };
 
       // ✅ CORRECCIÓN: Accede a la propiedad 'code' dentro del objeto 'pairingCode'.
       const code = data.pairingCode?.code || data.code;
-      if (code) return { type: 'code', data: code };
+      if (code) return { type: "code", data: code };
 
-      throw new Error('QR code or pairing code not found in response');
+      throw new Error("QR code or pairing code not found in response");
     } catch (error) {
       this.logger.error(
         `Error fetching QR code for instance ${instanceName}: ${error.message}`,
-        error.stack
+        error.stack,
       );
       throw new HttpException(
-        'Failed to fetch QR code from Evolution API.',
+        "Failed to fetch QR code from Evolution API.",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-
-  async logoutInstance(instanceToken: string, instanceName: string) { // Ya usa instanceName
+  async logoutInstance(instanceToken: string, instanceName: string) {
+    // Ya usa instanceName
     const encodedName = encodeURIComponent(instanceName);
     const url = `${this.baseUrl}/instance/logout/${encodedName}`;
     try {
       await lastValueFrom(
         this.http.delete(url, this._getConfig(instanceToken)),
       );
-      this.logger.log(`Successfully sent logout command to Evolution API for ${instanceName}.`);
+      this.logger.log(
+        `Successfully sent logout command to Evolution API for ${instanceName}.`,
+      );
     } catch (error) {
-      this.logger.error(`Logout failed for ${instanceName}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Logout failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
       throw new HttpException(
-        'Failed to logout instance on Evolution API.',
+        "Failed to logout instance on Evolution API.",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  async deleteInstance(apiToken: string, instanceName: string) { // Ya usa instanceName
+  async deleteInstance(apiToken: string, instanceName: string) {
+    // Ya usa instanceName
     const encodedName = encodeURIComponent(instanceName);
     const url = `${this.baseUrl}/instance/delete/${encodedName}`;
     try {
-      await lastValueFrom(
-        this.http.delete(url, this._getConfig(apiToken)),
+      await lastValueFrom(this.http.delete(url, this._getConfig(apiToken)));
+      this.logger.log(
+        `Successfully sent delete command to Evolution API for ${instanceName}.`,
       );
-      this.logger.log(`Successfully sent delete command to Evolution API for ${instanceName}.`);
     } catch (error) {
-      this.logger.error(`Delete failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to delete instance on Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Delete failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to delete instance on Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async restartInstance(instanceToken: string, instanceName: string) { // Ya usa instanceName
+  async restartInstance(instanceToken: string, instanceName: string) {
+    // Ya usa instanceName
     const encodedName = encodeURIComponent(instanceName);
     const url = `${this.baseUrl}/instance/restart/${encodedName}`;
     try {
@@ -218,8 +244,14 @@ export class EvolutionService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(`Restart failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to restart instance on Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Restart failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to restart instance on Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -233,15 +265,17 @@ export class EvolutionService {
     )}`;
     try {
       await lastValueFrom(
-        this.http.post(
-          url,
-          { presence },
-          this._getConfig(instanceToken),
-        ),
+        this.http.post(url, { presence }, this._getConfig(instanceToken)),
       );
     } catch (error) {
-      this.logger.error(`Set presence failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to set presence on Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Set presence failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to set presence on Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -257,12 +291,19 @@ export class EvolutionService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(`Set webhook failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to set webhook on Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Set webhook failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to set webhook on Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async findWebhook(instanceToken: string, instanceName: string) { // Ya usa instanceName
+  async findWebhook(instanceToken: string, instanceName: string) {
+    // Ya usa instanceName
     const url = `${this.baseUrl}/webhook/find/${encodeURIComponent(instanceName)}`;
     try {
       const response = await lastValueFrom(
@@ -270,8 +311,14 @@ export class EvolutionService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(`Find webhook failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to get webhook from Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Find webhook failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to get webhook from Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -287,12 +334,19 @@ export class EvolutionService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(`Set settings failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to set settings on Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Set settings failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to set settings on Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async findSettings(instanceToken: string, instanceName: string) { // Ya usa instanceName
+  async findSettings(instanceToken: string, instanceName: string) {
+    // Ya usa instanceName
     const url = `${this.baseUrl}/settings/find/${encodeURIComponent(instanceName)}`;
     try {
       const response = await lastValueFrom(
@@ -300,9 +354,14 @@ export class EvolutionService {
       );
       return response.data;
     } catch (error) {
-      this.logger.error(`Find settings failed for ${instanceName}: ${error.message}`, error.stack);
-      throw new HttpException('Failed to get settings from Evolution API.', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(
+        `Find settings failed for ${instanceName}: ${error.message}`,
+        error.stack,
+      );
+      throw new HttpException(
+        "Failed to get settings from Evolution API.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
-

@@ -1,38 +1,38 @@
 import { IsString, IsArray, IsNotEmpty } from "class-validator";
 
 export class GhlWebhookDto {
-	@IsString()
-	contactId: string;
+  @IsString()
+  contactId: string;
 
-	@IsString()
-	locationId: string;
+  @IsString()
+  locationId: string;
 
-	@IsString()
-	messageId: string;
+  @IsString()
+  messageId: string;
 
-	@IsString()
-	@IsNotEmpty()
-	type: string;
+  @IsString()
+  @IsNotEmpty()
+  type: string;
 
-	@IsString()
-	phone: string;
+  @IsString()
+  phone: string;
 
-	@IsString()
-	message: string;
+  @IsString()
+  message: string;
 
-	@IsArray()
-	@IsString({each: true})
-	attachments: string[];
+  @IsArray()
+  @IsString({ each: true })
+  attachments: string[];
 
-	@IsString()
-	userId: string;
+  @IsString()
+  userId: string;
 
-	@IsString()
-	conversationId: string;
+  @IsString()
+  conversationId: string;
 
-	@IsString()
-	customUserId?: string;
+  @IsString()
+  customUserId?: string;
 
-	@IsString()
-	conversationProviderId?: string;
+  @IsString()
+  conversationProviderId?: string;
 }

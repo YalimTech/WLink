@@ -1,16 +1,16 @@
 // src/evolution-api/evolution-api.service.ts
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import axios, { AxiosInstance, AxiosError } from "axios";
 import {
   BaseAdapter,
   NotFoundError,
   IntegrationError,
-} from '../core/base-adapter';
-import { EvolutionApiTransformer } from './evolution-api.transformer';
-import { PrismaService, parseId } from '../prisma/prisma.service';
-import { EvolutionService } from '../evolution/evolution.service';
-import { GhlWebhookDto } from './dto/ghl-webhook.dto';
+} from "../core/base-adapter";
+import { EvolutionApiTransformer } from "./evolution-api.transformer";
+import { PrismaService, parseId } from "../prisma/prisma.service";
+import { EvolutionService } from "../evolution/evolution.service";
+import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
 import {
   User,
   Instance,
@@ -21,7 +21,7 @@ import {
   GhlContactUpsertResponse,
   MessageStatusPayload,
   InstanceState,
-} from '../types';
+} from "../types";
 
 @Injectable()
 export class EvolutionApiService extends BaseAdapter<
@@ -30,8 +30,8 @@ export class EvolutionApiService extends BaseAdapter<
   User,
   Instance
 > {
-  private readonly ghlApiBaseUrl = 'https://services.leadconnectorhq.com';
-  private readonly ghlApiVersion = '2021-07-28';
+  private readonly ghlApiBaseUrl = "https://services.leadconnectorhq.com";
+  private readonly ghlApiVersion = "2021-07-28";
 
   constructor(
     protected readonly evolutionApiTransformer: EvolutionApiTransformer,
@@ -92,7 +92,7 @@ export class EvolutionApiService extends BaseAdapter<
       headers: {
         Authorization: `Bearer ${currentAccessToken}`,
         Version: this.ghlApiVersion,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
   }
@@ -100,17 +100,17 @@ export class EvolutionApiService extends BaseAdapter<
   private async refreshGhlAccessToken(refreshToken: string): Promise<any> {
     const body = new URLSearchParams({
       // **CORRECCIÓN AQUÍ:** Se cambió 'GHL_CLIENT_CLIENT_ID' a 'GHL_CLIENT_ID'
-      client_id: this.configService.get('GHL_CLIENT_ID')!,
-      client_secret: this.configService.get('GHL_CLIENT_SECRET')!,
-      grant_type: 'refresh_token',
+      client_id: this.configService.get("GHL_CLIENT_ID")!,
+      client_secret: this.configService.get("GHL_CLIENT_SECRET")!,
+      grant_type: "refresh_token",
       refresh_token: refreshToken,
-      user_type: 'Location',
+      user_type: "Location",
     });
     const response = await axios.post(
       `${this.ghlApiBaseUrl}/oauth/token`,
       body,
       {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
       },
     );
     return response.data;
@@ -122,19 +122,31 @@ export class EvolutionApiService extends BaseAdapter<
    * @param ghlLocationId El ID del usuario de GHL (obtenido del callback OAuth).
    * @returns Los detalles del usuario de GHL o null si no se encuentra.
    */
-  public async getGhlUserDetails(locationId: string, ghlLocationId: string): Promise<any | null> {
+  public async getGhlUserDetails(
+    locationId: string,
+    ghlLocationId: string,
+  ): Promise<any | null> {
     try {
       const httpClient = await this.getHttpClient(locationId);
       const response = await httpClient.get(`/users/${ghlLocationId}`); // Endpoint para obtener detalles del usuario
-      this.logger.log(`Fetched GHL user details for ${ghlLocationId}: ${JSON.stringify(response.data)}`);
+      this.logger.log(
+        `Fetched GHL user details for ${ghlLocationId}: ${JSON.stringify(response.data)}`,
+      );
       return response.data?.user || response.data; // La respuesta puede variar, a veces viene en 'user'
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
-        this.logger.warn(`GHL User ${ghlLocationId} not found for location ${locationId}.`);
+        this.logger.warn(
+          `GHL User ${ghlLocationId} not found for location ${locationId}.`,
+        );
         return null;
       }
-      this.logger.error(`Error fetching GHL user details for ${ghlLocationId}: ${error.message}`, error.stack);
-      throw new IntegrationError(`Failed to fetch GHL user details: ${error.message}`);
+      this.logger.error(
+        `Error fetching GHL user details for ${ghlLocationId}: ${error.message}`,
+        error.stack,
+      );
+      throw new IntegrationError(
+        `Failed to fetch GHL user details: ${error.message}`,
+      );
     }
   }
 
@@ -166,7 +178,7 @@ export class EvolutionApiService extends BaseAdapter<
     instanceName: string, // CAMBIO: Parámetro 'instanceId' a 'instanceName'
   ): Promise<GhlContact> {
     const httpClient = await this.getHttpClient(locationId);
-    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
     // CAMBIO: Usar 'instanceName' para la etiqueta
     const tag = `whatsapp-instance-${instanceName}`;
 
@@ -175,16 +187,16 @@ export class EvolutionApiService extends BaseAdapter<
       locationId: locationId,
       phone: formattedPhone,
       tags: [tag],
-      source: 'EvolutionAPI Integration',
+      source: "EvolutionAPI Integration",
     };
 
     const { data } = await httpClient.post<GhlContactUpsertResponse>(
-      '/contacts/upsert',
+      "/contacts/upsert",
       upsertPayload,
     );
     if (!data?.contact) {
       throw new IntegrationError(
-        'Could not get contact from GHL upsert response.',
+        "Could not get contact from GHL upsert response.",
       );
     }
     return data.contact;
@@ -196,8 +208,9 @@ export class EvolutionApiService extends BaseAdapter<
   ): Promise<void> {
     // CAMBIO: Usar 'instanceName' para buscar la instancia
     const instance = await this.prisma.getInstance(instanceName);
-    if (!instance) throw new NotFoundError(`Instance ${instanceName} not found`); // CAMBIO: Usar 'instanceName'
-    if (instance.state !== 'authorized')
+    if (!instance)
+      throw new NotFoundError(`Instance ${instanceName} not found`); // CAMBIO: Usar 'instanceName'
+    if (instance.state !== "authorized")
       throw new IntegrationError(`Instance ${instanceName} is not authorized`); // CAMBIO: Usar 'instanceName'
 
     await this.evolutionService.sendMessage(
@@ -209,7 +222,7 @@ export class EvolutionApiService extends BaseAdapter<
     await this.updateGhlMessageStatus(
       ghlWebhook.locationId,
       ghlWebhook.messageId,
-      'delivered',
+      "delivered",
     );
   }
 
@@ -217,61 +230,86 @@ export class EvolutionApiService extends BaseAdapter<
    * Maneja los webhooks entrantes de Evolution API.
    * ✅ MEJORA: Más logs para depurar el estado de la instancia.
    */
-  public async handleEvolutionWebhook(webhook: EvolutionWebhook): Promise<void> {
+  public async handleEvolutionWebhook(
+    webhook: EvolutionWebhook,
+  ): Promise<void> {
     const instanceName = webhook.instance; // Este es el instanceName de Evolution API
     if (!instanceName) {
-      this.logger.warn('[EvolutionApiService] Webhook received without an instance name. Ignoring.');
+      this.logger.warn(
+        "[EvolutionApiService] Webhook received without an instance name. Ignoring.",
+      );
       return;
     }
 
     this.logger.log(
       `[EvolutionApiService] Processing webhook for instance: '${instanceName}', Event: '${webhook.event}'.`,
     );
-    this.logger.debug(`[EvolutionApiService] Full Webhook Payload: ${JSON.stringify(webhook)}`);
+    this.logger.debug(
+      `[EvolutionApiService] Full Webhook Payload: ${JSON.stringify(webhook)}`,
+    );
 
-
-    if (webhook.event === 'connection.update' && typeof webhook.data?.state !== 'undefined') {
+    if (
+      webhook.event === "connection.update" &&
+      typeof webhook.data?.state !== "undefined"
+    ) {
       const state = webhook.data.state;
       let mappedStatus: InstanceState;
 
       switch (state) {
-        case 'open': // Evolution API uses 'open' for authorized
-          mappedStatus = 'authorized';
+        case "open": // Evolution API uses 'open' for authorized
+          mappedStatus = "authorized";
           break;
-        case 'connecting':
-          mappedStatus = 'starting';
+        case "connecting":
+          mappedStatus = "starting";
           break;
-        case 'close': // Evolution API uses 'close' for disconnected
-          mappedStatus = 'notAuthorized';
+        case "close": // Evolution API uses 'close' for disconnected
+          mappedStatus = "notAuthorized";
           break;
-        case 'qrcode': // Sometimes the state might directly be 'qrcode'
-          mappedStatus = 'qr_code';
+        case "qrcode": // Sometimes the state might directly be 'qrcode'
+          mappedStatus = "qr_code";
           break;
         default:
-          this.logger.warn(`[EvolutionApiService] Unknown connection state received for '${instanceName}': '${state}'. Not updating state.`);
+          this.logger.warn(
+            `[EvolutionApiService] Unknown connection state received for '${instanceName}': '${state}'. Not updating state.`,
+          );
           return;
       }
-      
-      this.logger.log(`[EvolutionApiService] Attempting to update instance '${instanceName}' state from webhook. Mapped Status: '${mappedStatus}'`);
+
+      this.logger.log(
+        `[EvolutionApiService] Attempting to update instance '${instanceName}' state from webhook. Mapped Status: '${mappedStatus}'`,
+      );
       // CAMBIO: Usar 'instanceName' para actualizar el estado en la DB
-      const updated = await this.prisma.updateInstanceState(instanceName, mappedStatus);
-      
+      const updated = await this.prisma.updateInstanceState(
+        instanceName,
+        mappedStatus,
+      );
+
       if (updated) {
-        this.logger.log(`[EvolutionApiService] Instance '${instanceName}' state updated to '${mappedStatus}' via webhook.`);
+        this.logger.log(
+          `[EvolutionApiService] Instance '${instanceName}' state updated to '${mappedStatus}' via webhook.`,
+        );
       } else {
-        this.logger.warn(`[EvolutionApiService] Webhook for instance '${instanceName}' received, but could not find/update it in DB. Check instance name.`);
+        this.logger.warn(
+          `[EvolutionApiService] Webhook for instance '${instanceName}' received, but could not find/update it in DB. Check instance name.`,
+        );
       }
-    } else if (webhook.event === 'messages.upsert' && webhook.data?.key?.remoteJid) {
+    } else if (
+      webhook.event === "messages.upsert" &&
+      webhook.data?.key?.remoteJid
+    ) {
       // Buscar la instancia por su instanceName (que es el 'instance' del webhook)
       const instance = await this.prisma.getInstance(instanceName);
       if (!instance) {
-        this.logger.warn(`[EvolutionApiService] Webhook 'messages.upsert' for unknown instance '${instanceName}'. Ignoring message.`);
+        this.logger.warn(
+          `[EvolutionApiService] Webhook 'messages.upsert' for unknown instance '${instanceName}'. Ignoring message.`,
+        );
         return;
       }
 
       const { data } = webhook;
-      const senderPhone = data.key.remoteJid.split('@')[0];
-      const senderName = data.pushName || `WhatsApp User ${senderPhone.slice(-4)}`;
+      const senderPhone = data.key.remoteJid.split("@")[0];
+      const senderName =
+        data.pushName || `WhatsApp User ${senderPhone.slice(-4)}`;
       const ghlContact = await this.findOrCreateGhlContact(
         instance.locationId, // CAMBIO: Usar instance.locationId
         senderPhone,
@@ -282,9 +320,13 @@ export class EvolutionApiService extends BaseAdapter<
       transformedMsg.contactId = ghlContact.id;
       transformedMsg.locationId = instance.locationId; // CAMBIO: Usar instance.locationId
       await this.postInboundMessageToGhl(instance.locationId, transformedMsg); // CAMBIO: Usar instance.locationId
-      this.logger.log(`[EvolutionApiService] Message upsert processed for instance '${instanceName}'.`);
+      this.logger.log(
+        `[EvolutionApiService] Message upsert processed for instance '${instanceName}'.`,
+      );
     } else {
-      this.logger.log(`[EvolutionApiService] Evolution Webhook event '${webhook.event}' received for instance '${instanceName}'. No specific handler or missing data. Full Payload: ${JSON.stringify(webhook)}`);
+      this.logger.log(
+        `[EvolutionApiService] Evolution Webhook event '${webhook.event}' received for instance '${instanceName}'. No specific handler or missing data. Full Payload: ${JSON.stringify(webhook)}`,
+      );
     }
   }
 
@@ -299,20 +341,25 @@ export class EvolutionApiService extends BaseAdapter<
    * @returns La instancia conectada y guardada en la DB.
    * @throws HttpException si la instancia ya existe para esta ubicación, o si las credenciales no son válidas.
    */
-  public async createEvolutionApiInstanceForUser( // Renombrar a 'connectExistingEvolutionApiInstance' sería más claro
+  public async createEvolutionApiInstanceForUser(
+    // Renombrar a 'connectExistingEvolutionApiInstance' sería más claro
     locationId: string,
     evolutionApiInstanceName: string,
     apiToken: string,
     customName?: string,
   ): Promise<Instance> {
-    this.logger.log(`[EvolutionApiService] Intentando conectar instancia existente: '${evolutionApiInstanceName}' (Nombre personalizado: '${customName || 'N/A'}') para la ubicación: '${locationId}'`); 
-    
+    this.logger.log(
+      `[EvolutionApiService] Intentando conectar instancia existente: '${evolutionApiInstanceName}' (Nombre personalizado: '${customName || "N/A"}') para la ubicación: '${locationId}'`,
+    );
+
     // 1. Comprobar si ya existe una instancia con este ID de Evolution API para esta ubicación.
-    const existing = await this.prisma.getInstance(evolutionApiInstanceName); 
-    if (existing && existing.locationId === locationId) { 
-      this.logger.warn(`[EvolutionApiService] La instancia '${evolutionApiInstanceName}' ya existe para esta ubicación.`); 
+    const existing = await this.prisma.getInstance(evolutionApiInstanceName);
+    if (existing && existing.locationId === locationId) {
+      this.logger.warn(
+        `[EvolutionApiService] La instancia '${evolutionApiInstanceName}' ya existe para esta ubicación.`,
+      );
       throw new HttpException(
-        `Una instancia con ID '${evolutionApiInstanceName}' ya existe para tu cuenta de WLink.`, 
+        `Una instancia con ID '${evolutionApiInstanceName}' ya existe para tu cuenta de WLink.`,
         HttpStatus.CONFLICT,
       );
     }
@@ -320,51 +367,63 @@ export class EvolutionApiService extends BaseAdapter<
     try {
       // 2. Validar las credenciales (del token específico de la instancia) y obtener el estado.
       // NO intentamos CREAR la instancia aquí, solo VALIDAR su existencia y credenciales.
-      this.logger.log(`[EvolutionApiService] Validando credenciales para la instancia existente: '${evolutionApiInstanceName}'...`); 
+      this.logger.log(
+        `[EvolutionApiService] Validando credenciales para la instancia existente: '${evolutionApiInstanceName}'...`,
+      );
       const isValid = await this.evolutionService.validateInstanceCredentials(
         apiToken,
         evolutionApiInstanceName,
       );
-      
+
       if (!isValid) {
-        this.logger.error(`[EvolutionApiService] Credenciales inválidas para la instancia: '${evolutionApiInstanceName}'.`); 
+        this.logger.error(
+          `[EvolutionApiService] Credenciales inválidas para la instancia: '${evolutionApiInstanceName}'.`,
+        );
         // CAMBIO: Mensaje de error más específico para el usuario.
-        throw new Error('Credenciales de instancia (ID o Token) no válidas. Verifica que la instancia exista en Evolution Manager y que el token sea correcto.'); 
+        throw new Error(
+          "Credenciales de instancia (ID o Token) no válidas. Verifica que la instancia exista en Evolution Manager y que el token sea correcto.",
+        );
       }
-      this.logger.log(`[EvolutionApiService] Credenciales válidas para '${evolutionApiInstanceName}'. Obteniendo estado inicial...`); 
+      this.logger.log(
+        `[EvolutionApiService] Credenciales válidas para '${evolutionApiInstanceName}'. Obteniendo estado inicial...`,
+      );
 
       const statusInfo = await this.evolutionService.getInstanceStatus(
         apiToken,
         evolutionApiInstanceName,
       );
-      
-      const state = statusInfo?.instance?.state || 'close';
+
+      const state = statusInfo?.instance?.state || "close";
       const mappedState: InstanceState =
-        state === 'open'
-          ? 'authorized'
-          : state === 'connecting'
-          ? 'starting'
-          : state === 'qrcode'
-          ? 'qr_code'
-          : 'notAuthorized';
-      
-      this.logger.log(`[EvolutionApiService] Estado inicial para '${evolutionApiInstanceName}' de Evolution API: '${state}'. Mapeado a: '${mappedState}'`); 
+        state === "open"
+          ? "authorized"
+          : state === "connecting"
+            ? "starting"
+            : state === "qrcode"
+              ? "qr_code"
+              : "notAuthorized";
+
+      this.logger.log(
+        `[EvolutionApiService] Estado inicial para '${evolutionApiInstanceName}' de Evolution API: '${state}'. Mapeado a: '${mappedState}'`,
+      );
 
       // 3. Guardar la instancia en la base de datos local.
       const newInstance = await this.prisma.createInstance({
         instanceName: evolutionApiInstanceName, // instanceName será el ID único de Evolution API
         instanceId: statusInfo?.instance?.instanceId || null, // instanceId será el GUID de Evolution
-        apiTokenInstance: apiToken, 
-        user: { connect: { locationId: locationId } }, 
+        apiTokenInstance: apiToken,
+        user: { connect: { locationId: locationId } },
         customName: customName || `Instancia ${evolutionApiInstanceName}`, // Se usa el customName, o uno por defecto
         state: mappedState,
         settings: {},
       });
-      this.logger.log(`[EvolutionApiService] Instancia '${evolutionApiInstanceName}' conectada en la DB con estado inicial: '${mappedState}'.`); 
+      this.logger.log(
+        `[EvolutionApiService] Instancia '${evolutionApiInstanceName}' conectada en la DB con estado inicial: '${mappedState}'.`,
+      );
       return newInstance;
     } catch (error) {
       this.logger.error(
-        `[EvolutionApiService] Falló la conexión o validación de instancia '${evolutionApiInstanceName}': ${error.message}. Stack: ${error.stack}`, 
+        `[EvolutionApiService] Falló la conexión o validación de instancia '${evolutionApiInstanceName}': ${error.message}. Stack: ${error.stack}`,
       );
       if (error instanceof HttpException) throw error;
       // CAMBIO: Mensaje de error más descriptivo para el usuario final.
@@ -378,7 +437,7 @@ export class EvolutionApiService extends BaseAdapter<
   public async updateGhlMessageStatus(
     locationId: string,
     messageId: string,
-    status: 'delivered' | 'read' | 'failed' | 'sent',
+    status: "delivered" | "read" | "failed" | "sent",
     meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
     this.logger.log(

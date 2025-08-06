@@ -1,5 +1,5 @@
-import { Module, Logger } from '@nestjs/common';
-import { CustomPageController } from './custom-page.controller';
+import { Module, Logger } from "@nestjs/common";
+import { CustomPageController } from "./custom-page.controller";
 
 @Module({
   controllers: [CustomPageController],

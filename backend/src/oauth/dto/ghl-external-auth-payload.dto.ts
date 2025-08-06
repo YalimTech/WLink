@@ -6,7 +6,7 @@ import {
   IsArray,
   ValidateIf,
   ArrayNotEmpty,
-} from 'class-validator';
+} from "class-validator";
 
 export class GhlExternalAuthPayloadDto {
   // locationId puede venir como string o array
@@ -22,7 +22,7 @@ export class GhlExternalAuthPayloadDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-Z0-9\-]+$/, {
-    message: 'instanceId must contain only letters, numbers, or dashes', // Actualizado el mensaje
+    message: "instanceId must contain only letters, numbers, or dashes", // Actualizado el mensaje
   })
   instanceId?: string; // Renombrado
 
@@ -30,7 +30,7 @@ export class GhlExternalAuthPayloadDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-Z0-9\-]+$/, {
-    message: 'api_token_instance must contain only letters, numbers, or dashes',
+    message: "api_token_instance must contain only letters, numbers, or dashes",
   })
   api_token_instance?: string;
 }

@@ -1,7 +1,13 @@
 // src/evolutionapi/index.ts
-import { User, Instance, InstanceState, UserCreateData, UserUpdateData } from '../types';
-import { ExecutionContext, Logger, CanActivate } from '@nestjs/common';
-import { Request } from 'express';
+import {
+  User,
+  Instance,
+  InstanceState,
+  UserCreateData,
+  UserUpdateData,
+} from "../types";
+import { ExecutionContext, Logger, CanActivate } from "@nestjs/common";
+import { Request } from "express";
 
 export interface Settings {
   [key: string]: any;
@@ -25,7 +31,10 @@ export interface StorageProvider<U, V, C, D> {
   // CAMBIO: Renombrado de 'removeInstance(idInstance)' a 'removeInstance(instanceName)'
   removeInstance(instanceName: string): Promise<V>;
   // CAMBIO: Renombrado de 'updateInstanceName' a 'updateInstanceCustomName' y parámetros
-  updateInstanceCustomName(instanceName: string, customName: string): Promise<V>;
+  updateInstanceCustomName(
+    instanceName: string,
+    customName: string,
+  ): Promise<V>;
   // CAMBIO: Renombrado de 'idInstance' a 'instanceName'
   updateInstanceState(instanceName: string, state: InstanceState): Promise<V>;
   // CAMBIO: Renombrado de 'idInstance' a 'instanceName'
@@ -51,14 +60,14 @@ export interface MessageTransformer<T, U> {
 export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'NotFoundError';
+    this.name = "NotFoundError";
   }
 }
 
 export class IntegrationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'IntegrationError';
+    this.name = "IntegrationError";
   }
 }
 
@@ -74,9 +83,9 @@ export abstract class BaseEvolutionApiAuthGuard implements CanActivate {
   abstract canActivate(context: ExecutionContext): Promise<boolean>;
 
   protected async validateRequest(request: Request): Promise<boolean> {
-    const apiToken = request.headers['apikey'] as string;
+    const apiToken = request.headers["apikey"] as string;
     if (!apiToken) {
-      this.logger.warn('Missing API key in request headers.');
+      this.logger.warn("Missing API key in request headers.");
       return false;
     }
     // Aquí se puede añadir lógica futura para validar el token si es necesario
