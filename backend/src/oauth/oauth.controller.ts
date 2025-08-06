@@ -139,11 +139,18 @@ export class GhlOauthController {
       // Asegurar que la URL no termine con / para evitar double slashes
       frontendUrl = frontendUrl.replace(/\/$/, '');
       
+      // Logging detallado para debug
+      this.logger.log(`APP_URL: ${appUrl}`);
+      this.logger.log(`FRONTEND_URL from env: ${this.configService.get<string>("FRONTEND_URL")}`);
+      this.logger.log(`Final frontendUrl: ${frontendUrl}`);
+      
       const successPageUrl = `${frontendUrl}/oauth-success`;
       this.logger.log(
         `Redirigiendo a la página de éxito del frontend: ${successPageUrl}`,
       );
-      return res.redirect(HttpStatus.FOUND, successPageUrl);
+      
+      // Usar un redirect temporal para debugging
+      return res.redirect(302, successPageUrl);
     } catch (error: any) {
       this.logger.error("Error exchanging GHL OAuth code for tokens:", error);
       const errorDesc =
