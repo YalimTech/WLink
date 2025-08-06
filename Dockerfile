@@ -24,8 +24,15 @@ RUN npm run build
 FROM alpine:latest
 WORKDIR /usr/src/app
 
-# Instala NGINX, Supervisor y Node.js/npm (para ejecutar las apps)
-RUN apk add --no-cache nginx supervisor nodejs npm
+# Instala NGINX, Supervisor, Node.js/npm y OpenSSL (para certificados SSL)
+RUN apk add --no-cache nginx supervisor nodejs npm openssl
+
+# Genera certificados SSL autofirmados para desarrollo/testing
+RUN mkdir -p /etc/ssl/certs /etc/ssl/private && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/nginx-selfsigned.key \
+    -out /etc/ssl/certs/nginx-selfsigned.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
 
 # Copia la configuración de NGINX
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
@@ -45,8 +52,8 @@ COPY --from=frontend-builder /usr/src/app/frontend/node_modules ./frontend/node_
 COPY --from=frontend-builder /usr/src/app/frontend/package.json ./frontend/package.json
 COPY --from=frontend-builder /usr/src/app/frontend/public ./frontend/public
 
-# Expone el puerto 80 (NGINX)
-EXPOSE 80
+# Expone los puertos 80 (HTTP) y 443 (HTTPS)
+EXPOSE 80 443
 
 # Comando para ejecutar supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
