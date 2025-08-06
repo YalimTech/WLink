@@ -1,0 +1,67 @@
+# Configuración OAuth - GoHighLevel Integration
+
+## Problema: Bucle de Redirecciones (ERR_TOO_MANY_REDIRECTS)
+
+### Síntomas
+- La página muestra "ERR_TOO_MANY_REDIRECTS" después de intentar instalar la app en GoHighLevel
+- El callback OAuth no funciona correctamente
+
+### Causa
+El problema principal era la falta de la variable de entorno `FRONTEND_URL` en la configuración del backend, lo que causaba que el controlador OAuth no pudiera redirigir correctamente a la página de éxito.
+
+### Solución Implementada
+
+1. **Agregada variable FRONTEND_URL al docker-compose.yml**:
+   ```yaml
+   environment:
+     - FRONTEND_URL=${FRONTEND_URL}
+   ```
+
+2. **Mejorado el controlador OAuth** para manejar el caso donde `FRONTEND_URL` no esté definida:
+   - Ahora usa `APP_URL/app` como fallback
+   - Registra un warning en lugar de lanzar una excepción
+
+### Variables de Entorno Requeridas
+
+Para una configuración correcta, asegúrate de que estas variables estén definidas:
+
+```bash
+# URL principal de la aplicación
+APP_URL=https://tu-dominio.com
+
+# URL del frontend (opcional, usa APP_URL/app como fallback)
+FRONTEND_URL=https://tu-dominio.com/app
+
+# Credenciales de GoHighLevel
+GHL_CLIENT_ID=tu_client_id
+GHL_CLIENT_SECRET=tu_client_secret
+```
+
+### Flujo OAuth Correcto
+
+1. **Autorización**: GoHighLevel redirige a `${APP_URL}/oauth/callback`
+2. **Callback**: El backend procesa el código y tokens
+3. **Redirección**: El backend redirige a `${FRONTEND_URL}/oauth-success` (o `${APP_URL}/app/oauth-success` como fallback)
+4. **Éxito**: El usuario ve la página de confirmación
+
+### Configuración en GoHighLevel
+
+En tu aplicación de GoHighLevel, asegúrate de que la **Redirect URI** esté configurada como:
+```
+https://tu-dominio.com/oauth/callback
+```
+
+### Nginx Configuration
+
+El nginx.conf ya está configurado correctamente para manejar:
+- `/oauth/*` → Backend (puerto 3000)
+- `/app/*` → Frontend (puerto 3001)
+
+### Troubleshooting
+
+Si el problema persiste:
+
+1. Verifica que todas las variables de entorno estén definidas
+2. Revisa los logs del backend para errores específicos
+3. Asegúrate de que la Redirect URI en GoHighLevel coincida exactamente
+4. Verifica que los servicios backend y frontend estén corriendo en los puertos correctos (3000 y 3001)
