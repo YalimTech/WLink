@@ -136,6 +136,9 @@ export class GhlOauthController {
         frontendUrl = `${appUrl}/app`;
       }
       
+      // Asegurar que la URL no termine con / para evitar double slashes
+      frontendUrl = frontendUrl.replace(/\/$/, '');
+      
       const successPageUrl = `${frontendUrl}/oauth-success`;
       this.logger.log(
         `Redirigiendo a la página de éxito del frontend: ${successPageUrl}`,
