@@ -136,7 +136,10 @@ export class GhlOauthController {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-      const successPageUrl = `${frontendUrl}/oauth-success`;
+      // Construcción de URL robusta para evitar problemas con barras (/)
+      const baseUrl = frontendUrl.endsWith("/") ? frontendUrl : `${frontendUrl}/`;
+      const successPageUrl = new URL("oauth-success", baseUrl).toString();
+
       this.logger.log(
         `Redirigiendo a la página de éxito del frontend: ${successPageUrl}`,
       );
