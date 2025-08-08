@@ -66,7 +66,7 @@ export class WebhooksController {
           this.logger.error(
             `[WebhooksController] Evolution Webhook 'connection.update' received, but 'data' or 'data.state' is missing/undefined for instance: ${payload.instance}. Full Payload: ${JSON.stringify(payload)}`,
           );
-          return; // Ignoramos este webhook para evitar el crash si el estado es inesperado.
+          return;
         }
         // Si todo está en orden, delegamos al servicio.
         await this.evolutionApiService.handleEvolutionWebhook(payload);

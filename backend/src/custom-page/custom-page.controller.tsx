@@ -36,6 +36,9 @@ export class CustomPageController {
       }
 
       // 2. Intenta desencriptar los datos usando la clave secreta
+      if (!body.encryptedData) {
+        throw new UnauthorizedException('No encrypted data provided.');
+      }
       const decrypted = CryptoJS.AES.decrypt(
         body.encryptedData,
         sharedSecret,
