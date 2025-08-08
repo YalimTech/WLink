@@ -46,7 +46,9 @@ export class GhlOauthController {
     );
 
     if (!code) {
-      this.logger.error("[OAuth Callback] Error: Código de autorización faltante.");
+      this.logger.error(
+        "[OAuth Callback] Error: Código de autorización faltante.",
+      );
       throw new HttpException(
         "Invalid OAuth callback from GHL (missing code).",
         HttpStatus.BAD_REQUEST,
@@ -70,7 +72,7 @@ export class GhlOauthController {
 
     try {
       this.logger.log("[OAuth Callback] Intercambiando código por tokens...");
-      
+
       const tokenResponse = await axios.post(
         `${this.ghlServicesUrl}/oauth/token`,
         tokenRequestBody.toString(),
@@ -136,7 +138,7 @@ export class GhlOauthController {
       if (frontendUrlFromEnv) {
         // Si FRONTEND_URL está definida, usarla directamente con oauth-success
         // FRONTEND_URL ya incluye /app, así que solo agregamos oauth-success
-        redirectUrl = `${frontendUrlFromEnv.replace(/\/$/, '')}/oauth-success`;
+        redirectUrl = `${frontendUrlFromEnv.replace(/\/$/, "")}/oauth-success`;
       } else {
         // Si no está definida, usar APP_URL + /app/oauth-success
         this.logger.warn(
@@ -146,14 +148,21 @@ export class GhlOauthController {
       }
 
       // Logging detallado para debugging
-      this.logger.log(`[OAuth Callback] FRONTEND_URL desde env: ${frontendUrlFromEnv}`);
-      this.logger.log(`[OAuth Callback] URL de redirección construida: ${redirectUrl}`);
+      this.logger.log(
+        `[OAuth Callback] FRONTEND_URL desde env: ${frontendUrlFromEnv}`,
+      );
+      this.logger.log(
+        `[OAuth Callback] URL de redirección construida: ${redirectUrl}`,
+      );
 
       // Validar que la URL esté bien formada
       try {
         new URL(redirectUrl);
       } catch (urlError) {
-        this.logger.error(`[OAuth Callback] URL de redirección inválida: ${redirectUrl}`);
+        this.logger.error(
+          `[OAuth Callback] URL de redirección inválida: ${redirectUrl}`,
+          urlError,
+        );
         throw new HttpException(
           "Invalid redirect URL configuration",
           HttpStatus.INTERNAL_SERVER_ERROR,
@@ -166,21 +175,23 @@ export class GhlOauthController {
 
       // Usar redirect permanente (301) en lugar de temporal para evitar bucles
       return res.redirect(301, redirectUrl);
-      
     } catch (error: any) {
-      this.logger.error("[OAuth Callback] Error al intercambiar código OAuth por tokens:", error);
-      
+      this.logger.error(
+        "[OAuth Callback] Error al intercambiar código OAuth por tokens:",
+        error,
+      );
+
       // Si es un error de axios, extraer información útil
       if (error.response) {
         this.logger.error(`[OAuth Callback] Status: ${error.response.status}`);
         this.logger.error(`[OAuth Callback] Data:`, error.response.data);
       }
-      
+
       const errorDesc =
         (error.response?.data as any)?.error_description ||
         (error.response?.data as any)?.error ||
         "Unknown GHL OAuth error";
-        
+
       throw new HttpException(
         `Failed to obtain GHL tokens: ${errorDesc}`,
         error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
