@@ -1,24 +1,27 @@
 # Configuración de Variables de Entorno - DOKPLOY
 
-## 🚨 SOLUCIÓN PARA ERR_TOO_MANY_REDIRECTS
+## 🚨 SOLUCIÓN RADICAL PARA ERR_TOO_MANY_REDIRECTS
 
-Este documento contiene la configuración **EXACTA** necesaria para resolver el error `ERR_TOO_MANY_REDIRECTS` en WLINK.
+Este documento contiene la **SOLUCIÓN DEFINITIVA** al error `ERR_TOO_MANY_REDIRECTS` en WLINK.
 
-### ✅ CAUSA DEL PROBLEMA IDENTIFICADA
+### 🔧 PROBLEMA RESUELTO
 
-El error se debía a:
-1. **Configuración incorrecta** en el controlador OAuth
-2. **Conflictos en nginx** entre reglas de enrutamiento
-3. **Problemas con basePath** de Next.js
+El error se debía a **conflictos del basePath** en Next.js que causaba bucles infinitos de redirección.
+
+**SOLUCIÓN APLICADA:**
+- ✅ **Eliminado `basePath: '/app'`** de Next.js
+- ✅ **Reconfigurado nginx** para manejar rutas sin basePath
+- ✅ **Simplificado el controlador OAuth** para redirecciones directas
 
 ### 🔧 VARIABLES DE ENTORNO REQUERIDAS
 
 Configura estas variables en Dokploy **EXACTAMENTE** como se muestra:
 
 ```bash
-# === URLS PRINCIPALES (CRÍTICAS) ===
+# === URLS PRINCIPALES (SIMPLIFICADAS) ===
 APP_URL=https://wlink.prixcenter.com
-FRONTEND_URL=https://wlink.prixcenter.com/app
+
+# NOTA: FRONTEND_URL ya no es necesaria con la nueva configuración
 
 # === CREDENCIALES GOHIGHLEVEL ===
 GHL_CLIENT_ID=tu_client_id_aqui
@@ -42,65 +45,69 @@ En tu aplicación de GoHighLevel, configura la **Redirect URI** como:
 https://wlink.prixcenter.com/oauth/callback
 ```
 
-### 🔄 FLUJO OAUTH CORREGIDO
+### 🔄 NUEVO FLUJO OAUTH (SIN BASEPATH)
 
 1. **Usuario instala app** → GHL redirige a `wlink.prixcenter.com/oauth/callback`
 2. **Backend procesa OAuth** → Intercambia code por tokens
 3. **Backend redirige** → A `wlink.prixcenter.com/app/oauth-success`
-4. **Usuario ve página de éxito** → ✅ Proceso completado SIN bucles
+4. **Nginx reescribe** → `/app/oauth-success` se convierte en `/oauth-success` para Next.js
+5. **Usuario ve página de éxito** → ✅ **SIN BUCLES DE REDIRECCIÓN**
 
 ### 🛠️ CAMBIOS IMPLEMENTADOS
 
-#### A. Controlador OAuth Corregido
-- ✅ Lógica de redirección mejorada
-- ✅ Manejo correcto del basePath de Next.js
-- ✅ Logging detallado para debugging
-- ✅ Validación de URLs
-- ✅ Redirección 301 en lugar de 302
+#### A. Next.js Simplificado
+- ✅ **Eliminado `basePath: '/app'`** que causaba los bucles
+- ✅ **Configuración limpia** sin complicaciones
 
-#### B. Nginx Optimizado
-- ✅ Eliminadas reglas duplicadas
-- ✅ Simplificado enrutamiento
-- ✅ Configuración anti-bucles
-- ✅ Proxy optimizado para Next.js
+#### B. Nginx Completamente Reconfigurado
+- ✅ **Reescritura de rutas** `/app/algo` → `/algo` para Next.js
+- ✅ **Sin reglas conflictivas** que causen bucles
+- ✅ **Manejo correcto** de todas las rutas
+
+#### C. Controlador OAuth Simplificado
+- ✅ **Redirección directa** sin lógica compleja
+- ✅ **Logging mejorado** para debugging
+- ✅ **URL simple**: `APP_URL/app/oauth-success`
 
 ### 🧪 VERIFICACIÓN DESPUÉS DEL DEPLOY
 
 1. **Revisa los logs** del backend para ver:
 ```
 [OAuth Callback] APP_URL: https://wlink.prixcenter.com
-[OAuth Callback] FRONTEND_URL desde env: https://wlink.prixcenter.com/app
 [OAuth Callback] URL de redirección construida: https://wlink.prixcenter.com/app/oauth-success
 [OAuth Callback] Redirigiendo a la página de éxito: https://wlink.prixcenter.com/app/oauth-success
 ```
 
-2. **Prueba el flujo OAuth**:
-   - Ve a GoHighLevel marketplace
-   - Instala tu aplicación
-   - Debe redirigir a la página de éxito SIN errores
-
-### 🆘 TROUBLESHOOTING
-
-Si aún hay problemas:
-
-1. **Verifica variables**:
+2. **Prueba directamente**:
 ```bash
-# En Dokploy, asegúrate de que estas estén configuradas
-echo $APP_URL
-echo $FRONTEND_URL
+curl -I https://wlink.prixcenter.com/app/oauth-success
+# Debe devolver 200, NO 301 en bucle
 ```
 
-2. **Revisa logs**:
-   - Backend: logs de `[OAuth Callback]`
-   - Nginx: logs de acceso y errores
+3. **Prueba el flujo OAuth**:
+   - Ve a GoHighLevel marketplace
+   - Instala tu aplicación
+   - Debe redirigir exitosamente SIN errores
 
-3. **Verifica GHL**:
-   - Redirect URI: `https://wlink.prixcenter.com/oauth/callback`
-   - App status: "Published" o "Live"
+### 🆘 NUEVA ARQUITECTURA
 
-### 📞 CONTACTO
+```
+Solicitud: /app/oauth-success
+    ↓
+Nginx intercepta /app/*
+    ↓
+Reescribe a /oauth-success
+    ↓
+Envía a Next.js (puerto 3001)
+    ↓
+Next.js sirve la página oauth-success
+    ↓
+✅ Usuario ve página de éxito
+```
 
-Si el problema persiste después de implementar estos cambios:
-1. Proporciona logs del backend
-2. Screenshot del error
-3. Configuración exacta de GoHighLevel
+### 📞 RESULTADO ESPERADO
+
+- ❌ **ANTES**: `ERR_TOO_MANY_REDIRECTS`
+- ✅ **DESPUÉS**: Página de éxito OAuth funcionando perfectamente
+
+Esta solución **elimina completamente** el problema del basePath y debe funcionar sin errores.

@@ -128,25 +128,15 @@ export class GhlOauthController {
         }
       }
 
-      // SOLUCIÓN AL PROBLEMA DE REDIRECCIONES
-      // Construir la URL correcta considerando el basePath de Next.js
-      const frontendUrlFromEnv = this.configService.get<string>("FRONTEND_URL");
-      let redirectUrl: string;
-
-      if (frontendUrlFromEnv) {
-        // Si FRONTEND_URL está definida, usarla directamente con oauth-success
-        // FRONTEND_URL ya incluye /app, así que solo agregamos oauth-success
-        redirectUrl = `${frontendUrlFromEnv.replace(/\/$/, '')}/oauth-success`;
-      } else {
-        // Si no está definida, usar APP_URL + /app/oauth-success
-        this.logger.warn(
-          "[OAuth Callback] FRONTEND_URL no está definida. Usando APP_URL/app como fallback.",
-        );
-        redirectUrl = `${appUrl}/app/oauth-success`;
-      }
+      // SOLUCIÓN RADICAL AL PROBLEMA DE REDIRECCIONES
+      // Ahora que quitamos el basePath, la redirección es más simple
+      const appUrl = this.configService.get<string>("APP_URL")!;
+      
+      // Construir URL simple sin basePath complicado
+      const redirectUrl = `${appUrl}/app/oauth-success`;
 
       // Logging detallado para debugging
-      this.logger.log(`[OAuth Callback] FRONTEND_URL desde env: ${frontendUrlFromEnv}`);
+      this.logger.log(`[OAuth Callback] APP_URL: ${appUrl}`);
       this.logger.log(`[OAuth Callback] URL de redirección construida: ${redirectUrl}`);
 
       // Validar que la URL esté bien formada
