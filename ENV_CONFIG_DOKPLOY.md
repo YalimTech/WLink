@@ -1,70 +1,106 @@
-# Configuración de Variables de Entorno para Dokploy
+# Configuración de Variables de Entorno - DOKPLOY
 
-## Variables Requeridas para Solucionar ERR_TOO_MANY_REDIRECTS
+## 🚨 SOLUCIÓN PARA ERR_TOO_MANY_REDIRECTS
 
-Para que la integración con GoHighLevel funcione correctamente en Dokploy, asegúrate de configurar las siguientes variables de entorno:
+Este documento contiene la configuración **EXACTA** necesaria para resolver el error `ERR_TOO_MANY_REDIRECTS` en WLINK.
 
-### Variables Principales
+### ✅ CAUSA DEL PROBLEMA IDENTIFICADA
+
+El error se debía a:
+1. **Configuración incorrecta** en el controlador OAuth
+2. **Conflictos en nginx** entre reglas de enrutamiento
+3. **Problemas con basePath** de Next.js
+
+### 🔧 VARIABLES DE ENTORNO REQUERIDAS
+
+Configura estas variables en Dokploy **EXACTAMENTE** como se muestra:
+
 ```bash
-# URL de tu aplicación en Dokploy (reemplaza con tu dominio real)
-APP_URL=https://tu-dominio.dokploy.app
+# === URLS PRINCIPALES (CRÍTICAS) ===
+APP_URL=https://wlink.prixcenter.com
+FRONTEND_URL=https://wlink.prixcenter.com/app
 
-# URL del frontend (CRÍTICO para evitar redirects loops)
-# Debe apuntar al path /app de tu aplicación
-FRONTEND_URL=https://tu-dominio.dokploy.app/app
+# === CREDENCIALES GOHIGHLEVEL ===
+GHL_CLIENT_ID=tu_client_id_aqui
+GHL_CLIENT_SECRET=tu_client_secret_aqui
+GHL_CONVERSATION_PROVIDER_ID=tu_provider_id_aqui
+GHL_SHARED_SECRET=tu_shared_secret_aqui
 
-# Credenciales de GoHighLevel (obtén estos de tu app en GHL)
-GHL_CLIENT_ID=tu_client_id_de_ghl
-GHL_CLIENT_SECRET=tu_client_secret_de_ghl
-GHL_CONVERSATION_PROVIDER_ID=tu_provider_id
-GHL_SHARED_SECRET=tu_shared_secret
-
-# URLs de Evolution API
+# === EVOLUTION API ===
 EVOLUTION_API_URL=https://evo.tu-dominio.com
 EVOLUTION_CONSOLE_URL=https://evo.tu-dominio.com/manager
-
-# Token de instancia para Evolution API
 INSTANCE_TOKEN=tu_token_de_instancia
 
-# Base de datos
+# === BASE DE DATOS ===
 DATABASE_URL=postgresql://user:password@host:port/database
 ```
 
-### Configuración en GoHighLevel
+### 📋 CONFIGURACIÓN EN GOHIGHLEVEL
 
 En tu aplicación de GoHighLevel, configura la **Redirect URI** como:
 ```
-https://tu-dominio.dokploy.app/oauth/callback
+https://wlink.prixcenter.com/oauth/callback
 ```
 
-### Verificación de la Configuración
+### 🔄 FLUJO OAUTH CORREGIDO
 
-1. **Verifica que FRONTEND_URL esté configurada correctamente**:
-   - Debe terminar en `/app` (sin slash final)
-   - Ejemplo: `https://miapp.dokploy.app/app`
+1. **Usuario instala app** → GHL redirige a `wlink.prixcenter.com/oauth/callback`
+2. **Backend procesa OAuth** → Intercambia code por tokens
+3. **Backend redirige** → A `wlink.prixcenter.com/app/oauth-success`
+4. **Usuario ve página de éxito** → ✅ Proceso completado SIN bucles
 
-2. **Verifica la Redirect URI en GHL**:
-   - Debe apuntar a `/oauth/callback` de tu dominio
-   - Ejemplo: `https://miapp.dokploy.app/oauth/callback`
+### 🛠️ CAMBIOS IMPLEMENTADOS
 
-3. **Flujo OAuth esperado**:
-   - GHL redirige a: `https://tu-dominio.dokploy.app/oauth/callback`
-   - Backend procesa y redirige a: `https://tu-dominio.dokploy.app/app/oauth-success`
-   - Usuario ve página de éxito
+#### A. Controlador OAuth Corregido
+- ✅ Lógica de redirección mejorada
+- ✅ Manejo correcto del basePath de Next.js
+- ✅ Logging detallado para debugging
+- ✅ Validación de URLs
+- ✅ Redirección 301 en lugar de 302
 
-### Solución Aplicada
+#### B. Nginx Optimizado
+- ✅ Eliminadas reglas duplicadas
+- ✅ Simplificado enrutamiento
+- ✅ Configuración anti-bucles
+- ✅ Proxy optimizado para Next.js
 
-Se han hecho los siguientes cambios para solucionar el problema:
+### 🧪 VERIFICACIÓN DESPUÉS DEL DEPLOY
 
-1. **OAuth Controller**: Mejorado para limpiar URLs y evitar double slashes
-2. **Nginx Config**: Simplificado para evitar conflictos de redirección
-3. **Environment Variables**: Documentadas todas las variables críticas
+1. **Revisa los logs** del backend para ver:
+```
+[OAuth Callback] APP_URL: https://wlink.prixcenter.com
+[OAuth Callback] FRONTEND_URL desde env: https://wlink.prixcenter.com/app
+[OAuth Callback] URL de redirección construida: https://wlink.prixcenter.com/app/oauth-success
+[OAuth Callback] Redirigiendo a la página de éxito: https://wlink.prixcenter.com/app/oauth-success
+```
 
-### Troubleshooting
+2. **Prueba el flujo OAuth**:
+   - Ve a GoHighLevel marketplace
+   - Instala tu aplicación
+   - Debe redirigir a la página de éxito SIN errores
 
-Si aún tienes problemas:
+### 🆘 TROUBLESHOOTING
 
-1. Verifica los logs del backend en Dokploy
-2. Asegúrate de que las variables FRONTEND_URL y APP_URL están correctamente configuradas
-3. Revisa que la Redirect URI en GoHighLevel coincida exactamente
-4. Verifica que no hay caracteres especiales o espacios en las variables de entorno
+Si aún hay problemas:
+
+1. **Verifica variables**:
+```bash
+# En Dokploy, asegúrate de que estas estén configuradas
+echo $APP_URL
+echo $FRONTEND_URL
+```
+
+2. **Revisa logs**:
+   - Backend: logs de `[OAuth Callback]`
+   - Nginx: logs de acceso y errores
+
+3. **Verifica GHL**:
+   - Redirect URI: `https://wlink.prixcenter.com/oauth/callback`
+   - App status: "Published" o "Live"
+
+### 📞 CONTACTO
+
+Si el problema persiste después de implementar estos cambios:
+1. Proporciona logs del backend
+2. Screenshot del error
+3. Configuración exacta de GoHighLevel
