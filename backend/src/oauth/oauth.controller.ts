@@ -127,7 +127,7 @@ export class GhlOauthController {
 
       // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
       let frontendUrl = this.configService.get<string>("FRONTEND_URL");
-      
+
       // Si FRONTEND_URL no está definida, usar APP_URL con el path /app
       if (!frontendUrl) {
         this.logger.warn(
@@ -137,17 +137,21 @@ export class GhlOauthController {
       }
       // Logging detallado para debug
       this.logger.log(`APP_URL: ${appUrl}`);
-      this.logger.log(`FRONTEND_URL from env: ${this.configService.get<string>("FRONTEND_URL")}`);
+      this.logger.log(
+        `FRONTEND_URL from env: ${this.configService.get<string>("FRONTEND_URL")}`,
+      );
       this.logger.log(`Final frontendUrl: ${frontendUrl}`);
 
       // Construcción de URL robusta para evitar problemas con barras (/)
-      const baseUrl = frontendUrl.endsWith("/") ? frontendUrl : `${frontendUrl}/`;
+      const baseUrl = frontendUrl.endsWith("/")
+        ? frontendUrl
+        : `${frontendUrl}/`;
       const successPageUrl = new URL("oauth-success", baseUrl).toString();
 
       this.logger.log(
         `Redirigiendo a la página de éxito del frontend: ${successPageUrl}`,
       );
-      
+
       // Usar un redirect temporal para debugging
       return res.redirect(302, successPageUrl);
     } catch (error: any) {

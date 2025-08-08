@@ -206,7 +206,7 @@ export class EvolutionApiController {
       this.logger.log(
         `Instancia ${instanceData.instanceName} eliminada de la API de Evolution.`,
       ); // CAMBIO: Usar instanceName en el log
-    } catch (error) {
+    } catch (_e: any) {
       this.logger.warn(
         `No se pudo eliminar ${instanceData.instanceName} de Evolution. Podría ya no existir. Continuando...`,
       ); // CAMBIO: Usar instanceName en el log

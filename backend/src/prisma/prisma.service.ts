@@ -9,12 +9,7 @@ import {
   UserUpdateData,
 } from "../types";
 
-let PrismaClient: any;
-try {
-  PrismaClient = require("@prisma/client").PrismaClient;
-} catch {
-  PrismaClient = null;
-}
+import { PrismaClient } from "@prisma/client";
 
 export function parseId(id: string | number | bigint): string {
   return id.toString();

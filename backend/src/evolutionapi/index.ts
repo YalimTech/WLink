@@ -1,11 +1,5 @@
 // src/evolutionapi/index.ts
-import {
-  User,
-  Instance,
-  InstanceState,
-  UserCreateData,
-  UserUpdateData,
-} from "../types";
+import { InstanceState } from "../types";
 import { ExecutionContext, Logger, CanActivate } from "@nestjs/common";
 import { Request } from "express";
 

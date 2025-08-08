@@ -8,7 +8,7 @@ import {
   IntegrationError,
 } from "../core/base-adapter";
 import { EvolutionApiTransformer } from "./evolution-api.transformer";
-import { PrismaService, parseId } from "../prisma/prisma.service";
+import { PrismaService } from "../prisma/prisma.service";
 import { EvolutionService } from "../evolution/evolution.service";
 import { GhlWebhookDto } from "./dto/ghl-webhook.dto";
 import {
@@ -19,7 +19,6 @@ import {
   GhlContact,
   GhlContactUpsertRequest,
   GhlContactUpsertResponse,
-  MessageStatusPayload,
   InstanceState,
 } from "../types";
 
@@ -79,7 +78,7 @@ export class EvolutionApiService extends BaseAdapter<
           new Date(Date.now() + newTokens.expires_in * 1000),
         );
         currentAccessToken = newTokens.access_token;
-      } catch (err) {
+      } catch (_e: any) {
         throw new HttpException(
           `Unable to refresh GHL token. Please re-authorize.`,
           HttpStatus.UNAUTHORIZED,
@@ -438,7 +437,6 @@ export class EvolutionApiService extends BaseAdapter<
     locationId: string,
     messageId: string,
     status: "delivered" | "read" | "failed" | "sent",
-    meta: Partial<MessageStatusPayload> = {},
   ): Promise<void> {
     this.logger.log(
       `Updating message ${messageId} status to ${status} for location ${locationId}`,

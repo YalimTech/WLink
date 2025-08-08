@@ -10,14 +10,13 @@ import {
   BadRequestException,
   Logger,
   UseGuards,
-  Param, // Importamos Param para ser explícitos si se usa en la URL
 } from "@nestjs/common";
 import { Response, Request } from "express";
 import { EvolutionApiService } from "../evolution-api/evolution-api.service";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { GhlWebhookDto } from "../evolution-api/dto/ghl-webhook.dto";
-import { EvolutionWebhook, InstanceState } from "../types";
+import { EvolutionWebhook } from "../types";
 import { DynamicInstanceGuard } from "./guards/dynamic-instance.guard";
 
 @Controller("webhooks")
@@ -186,11 +185,6 @@ export class WebhooksController {
           locationId,
           messageId,
           "failed",
-          {
-            error: {
-              message: error.message || "Failed to process outbound message",
-            },
-          },
         );
       }
     }
