@@ -42,11 +42,11 @@ export class GhlOauthController {
   ) {
     const { code, instanceName, token, customName } = query;
     this.logger.log(
-      `GHL OAuth callback recibido. Code: ${code ? "present" : "MISSING"}`,
+      `[OAuth Callback] Iniciando proceso. Code: ${code ? "present" : "MISSING"}`,
     );
 
     if (!code) {
-      this.logger.error("GHL OAuth callback missing code.");
+      this.logger.error("[OAuth Callback] Error: Código de autorización faltante.");
       throw new HttpException(
         "Invalid OAuth callback from GHL (missing code).",
         HttpStatus.BAD_REQUEST,
@@ -56,6 +56,8 @@ export class GhlOauthController {
     const clientId = this.configService.get<string>("GHL_CLIENT_ID")!;
     const clientSecret = this.configService.get<string>("GHL_CLIENT_SECRET")!;
     const appUrl = this.configService.get<string>("APP_URL")!;
+
+    this.logger.log(`[OAuth Callback] APP_URL: ${appUrl}`);
 
     const tokenRequestBody = new URLSearchParams({
       client_id: clientId,
@@ -67,6 +69,8 @@ export class GhlOauthController {
     });
 
     try {
+      this.logger.log("[OAuth Callback] Intercambiando código por tokens...");
+      
       const tokenResponse = await axios.post(
         `${this.ghlServicesUrl}/oauth/token`,
         tokenRequestBody.toString(),
@@ -77,14 +81,13 @@ export class GhlOauthController {
         access_token,
         refresh_token,
         expires_in,
-        // scope, // 'scope' no se usa, se puede omitir si no es necesario
         companyId: respCompanyId,
         locationId: respLocationId,
       } = tokenResponse.data;
 
       if (!respLocationId) {
         this.logger.error(
-          "GHL Token response did not include locationId!",
+          "[OAuth Callback] Error: No se recibió locationId en la respuesta de GHL",
           tokenResponse.data,
         );
         throw new HttpException(
@@ -104,7 +107,7 @@ export class GhlOauthController {
       });
 
       this.logger.log(
-        `Stored/updated GHL tokens for Location: ${respLocationId}`,
+        `[OAuth Callback] Tokens guardados exitosamente para Location: ${respLocationId}`,
       );
 
       if (instanceName && token && customName) {
@@ -116,50 +119,68 @@ export class GhlOauthController {
             customName,
           );
           this.logger.log(
-            `Evolution API instance '${instanceName}' (Custom Name: '${customName}') stored for location '${respLocationId}'`,
+            `[OAuth Callback] Instancia Evolution API '${instanceName}' (Custom Name: '${customName}') almacenada para location '${respLocationId}'`,
           );
         } catch (err: any) {
           this.logger.error(
-            `Failed to store Evolution API instance: ${err.message}`,
+            `[OAuth Callback] Error al almacenar instancia Evolution API: ${err.message}`,
           );
         }
       }
 
-      // CAMBIO CRUCIAL: Redirigir al frontend de Next.js
-      let frontendUrl = this.configService.get<string>("FRONTEND_URL");
+      // SOLUCIÓN AL PROBLEMA DE REDIRECCIONES
+      // Construir la URL correcta considerando el basePath de Next.js
+      const frontendUrlFromEnv = this.configService.get<string>("FRONTEND_URL");
+      let redirectUrl: string;
 
-      // Si FRONTEND_URL no está definida, usar APP_URL con el path /app
-      if (!frontendUrl) {
+      if (frontendUrlFromEnv) {
+        // Si FRONTEND_URL está definida, usarla directamente con oauth-success
+        // FRONTEND_URL ya incluye /app, así que solo agregamos oauth-success
+        redirectUrl = `${frontendUrlFromEnv.replace(/\/$/, '')}/oauth-success`;
+      } else {
+        // Si no está definida, usar APP_URL + /app/oauth-success
         this.logger.warn(
-          "FRONTEND_URL is not defined in environment variables. Using APP_URL/app as fallback.",
+          "[OAuth Callback] FRONTEND_URL no está definida. Usando APP_URL/app como fallback.",
         );
-        frontendUrl = `${appUrl}/app`;
+        redirectUrl = `${appUrl}/app/oauth-success`;
       }
-      // Logging detallado para debug
-      this.logger.log(`APP_URL: ${appUrl}`);
+
+      // Logging detallado para debugging
+      this.logger.log(`[OAuth Callback] FRONTEND_URL desde env: ${frontendUrlFromEnv}`);
+      this.logger.log(`[OAuth Callback] URL de redirección construida: ${redirectUrl}`);
+
+      // Validar que la URL esté bien formada
+      try {
+        new URL(redirectUrl);
+      } catch (urlError) {
+        this.logger.error(`[OAuth Callback] URL de redirección inválida: ${redirectUrl}`);
+        throw new HttpException(
+          "Invalid redirect URL configuration",
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
       this.logger.log(
-        `FRONTEND_URL from env: ${this.configService.get<string>("FRONTEND_URL")}`,
-      );
-      this.logger.log(`Final frontendUrl: ${frontendUrl}`);
-
-      // Construcción de URL robusta para evitar problemas con barras (/)
-      const baseUrl = frontendUrl.endsWith("/")
-        ? frontendUrl
-        : `${frontendUrl}/`;
-      const successPageUrl = new URL("oauth-success", baseUrl).toString();
-
-      this.logger.log(
-        `Redirigiendo a la página de éxito del frontend: ${successPageUrl}`,
+        `[OAuth Callback] Redirigiendo a la página de éxito: ${redirectUrl}`,
       );
 
-      // Usar un redirect temporal para debugging
-      return res.redirect(302, successPageUrl);
+      // Usar redirect permanente (301) en lugar de temporal para evitar bucles
+      return res.redirect(301, redirectUrl);
+      
     } catch (error: any) {
-      this.logger.error("Error exchanging GHL OAuth code for tokens:", error);
+      this.logger.error("[OAuth Callback] Error al intercambiar código OAuth por tokens:", error);
+      
+      // Si es un error de axios, extraer información útil
+      if (error.response) {
+        this.logger.error(`[OAuth Callback] Status: ${error.response.status}`);
+        this.logger.error(`[OAuth Callback] Data:`, error.response.data);
+      }
+      
       const errorDesc =
         (error.response?.data as any)?.error_description ||
         (error.response?.data as any)?.error ||
         "Unknown GHL OAuth error";
+        
       throw new HttpException(
         `Failed to obtain GHL tokens: ${errorDesc}`,
         error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
