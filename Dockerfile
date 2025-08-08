@@ -22,6 +22,15 @@ RUN npm run build
 
 # Stage 3: Final Stage
 FROM alpine:latest
+
+# Argumentos que se pueden pasar durante la construcción
+ARG APP_URL
+ARG FRONTEND_URL
+
+# Variables de entorno para la aplicación en ejecución
+ENV APP_URL=${APP_URL}
+ENV FRONTEND_URL=${FRONTEND_URL}
+
 WORKDIR /usr/src/app
 
 # Instala NGINX, Supervisor, Node.js/npm y OpenSSL (para certificados SSL)
