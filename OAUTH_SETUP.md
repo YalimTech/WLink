@@ -7,11 +7,11 @@
 - El callback OAuth no funciona correctamente
 
 ### Causa
-El problema principal era la falta de la variable de entorno `FRONTEND_URL` en la configuración del backend, lo que causaba que el controlador OAuth no pudiera redirigir correctamente a la página de éxito.
+El problema principal era la falta de la variable de entorno `FRONTEND_URL` en la configuración del backend, junto con una configuración de Nginx que eliminaba el prefijo `/app` al reenviar al frontend, lo que generaba bucles de redirección.
 
 ### Solución Implementada
 
-1. **Agregada variable FRONTEND_URL al docker-compose.yml**:
+1. **Agregada variable FRONTEND_URL al entorno**:
    ```yaml
    environment:
      - FRONTEND_URL=${FRONTEND_URL}
@@ -20,6 +20,9 @@ El problema principal era la falta de la variable de entorno `FRONTEND_URL` en l
 2. **Mejorado el controlador OAuth** para manejar el caso donde `FRONTEND_URL` no esté definida:
    - Ahora usa `APP_URL/app` como fallback
    - Registra un warning en lugar de lanzar una excepción
+
+3. **Nginx ajustado** para preservar el prefijo `/app`:
+   - `proxy_pass http://frontend_service;` (sin barra final) dentro de `location /app/ { ... }`
 
 ### Variables de Entorno Requeridas
 
@@ -55,7 +58,7 @@ https://tu-dominio.com/oauth/callback
 
 El nginx.conf ya está configurado correctamente para manejar:
 - `/oauth/*` → Backend (puerto 3000)
-- `/app/*` → Frontend (puerto 3001)
+- `/app/*` → Frontend (puerto 3001) con `proxy_pass` sin barra final
 
 ### Troubleshooting
 
