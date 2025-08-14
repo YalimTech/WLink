@@ -130,19 +130,24 @@ export class GhlOauthController {
         }
       }
 
-      // Construir la URL de redirección final hacia el frontend con locationId
+      // Después del OAuth exitoso, necesitamos redirigir de vuelta a GoHighLevel
+      // para que la aplicación se cargue dentro del contexto del iframe
+      
+      // Primero, creamos una página de éxito que mostrará un mensaje temporal
       const frontendUrl =
         this.configService.get<string>("FRONTEND_URL") || appUrl;
-      const redirectBase = new URL("/app/custom-page", frontendUrl);
-      redirectBase.searchParams.set("locationId", respLocationId);
-      const redirectUrl = redirectBase.toString();
+      const successUrl = new URL("/oauth-success", frontendUrl);
+      successUrl.searchParams.set("locationId", respLocationId);
+      successUrl.searchParams.set("status", "success");
+      
+      const redirectUrl = successUrl.toString();
 
-      // Logging detallado para debugging
+      // Logging para debugging
       this.logger.log(
-        `[OAuth Callback] FRONTEND_URL desde env: ${frontendUrl}`,
+        `[OAuth Callback] Redirigiendo a página de éxito OAuth: ${redirectUrl}`,
       );
       this.logger.log(
-        `[OAuth Callback] Redirigiendo a la página de la aplicación: ${redirectUrl}`,
+        `[OAuth Callback] El usuario debe volver a GoHighLevel y abrir la aplicación desde allí`,
       );
 
       // Validar que la URL esté bien formada
@@ -159,7 +164,7 @@ export class GhlOauthController {
         );
       }
 
-      // Usar redirect temporal (302) y desactivar caché para evitar bucles por 301 cacheado
+      // Usar redirect temporal (302) y desactivar caché
       res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
