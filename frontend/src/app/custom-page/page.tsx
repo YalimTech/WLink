@@ -219,11 +219,40 @@ function CustomPageContent() {
   const processUser = useCallback(async () => {
     try {
       if (locationIdFromUrl) {
-        setPageStatus('loaded');
-        setLocationId(locationIdFromUrl);
-        // We assume if locationId is passed, they are authenticated via OAuth
-        setGhlUser((prev) => ({ ...prev, hasTokens: true }));
-        console.log(`[WLINK_DEBUG] Initialized with locationId from URL: ${locationIdFromUrl}`);
+        console.log(`[WLINK_DEBUG] Processing user with locationId from URL: ${locationIdFromUrl}`);
+        
+        // Llamar al nuevo endpoint para obtener datos del usuario por locationId
+        try {
+          const response = await axios.post<DecryptResponse>('/api/get-user-by-location', { 
+            locationId: locationIdFromUrl 
+          });
+          const data = response.data;
+          
+          if (data && data.success) {
+            const name = data.userData?.fullName || 'Usuario OAuth';
+            const email = data.userData?.email || 'oauth@user.com';
+            setLocationId(locationIdFromUrl);
+            setGhlUser({ 
+              name, 
+              email, 
+              hasTokens: data.user?.hasTokens || false 
+            });
+            setPageStatus('loaded');
+            console.log(`[WLINK_DEBUG] User data loaded successfully via OAuth flow`);
+          } else {
+            throw new Error('Invalid response from server');
+          }
+        } catch (apiError: any) {
+          console.error('[WLINK_DEBUG] Error fetching user data:', apiError);
+          // Fallback: cargar la página con datos mínimos
+          setLocationId(locationIdFromUrl);
+          setGhlUser({
+            name: 'Usuario OAuth',
+            email: 'oauth@user.com',
+            hasTokens: true // Asumimos que si viene de OAuth, tiene tokens
+          });
+          setPageStatus('loaded');
+        }
       }
     } catch (err: any) {
       setPageStatus('error');

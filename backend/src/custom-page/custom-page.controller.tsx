@@ -89,4 +89,59 @@ export class CustomPageController {
       throw new UnauthorizedException('Invalid or malformed GHL context or internal server error.');
     }
   }
+
+  @Post('get-user-by-location') // Nueva ruta para obtener usuario por locationId (flujo OAuth)
+  @HttpCode(HttpStatus.OK)
+  async getUserByLocation(
+    @Body() body: { locationId: string },
+    @Res() res: Response,
+  ) {
+    try {
+      const { locationId } = body;
+      
+      if (!locationId) {
+        throw new UnauthorizedException('No location ID provided');
+      }
+
+      // Busca el usuario en la base de datos usando el locationId
+      const user = await this.prisma.findUser(locationId);
+      
+      if (!user) {
+        // Si no existe el usuario, devuelve éxito pero sin datos de usuario
+        // Esto puede pasar si el OAuth no completó correctamente
+        return res.json({
+          success: true,
+          locationId,
+          userData: {
+            activeLocation: locationId,
+            // Datos mínimos para que la UI funcione
+            fullName: 'Usuario OAuth',
+            email: 'oauth@user.com'
+          },
+          user: null,
+        });
+      }
+
+      // Si el usuario existe, devuelve los datos
+      return res.json({
+        success: true,
+        locationId,
+        userData: {
+          activeLocation: locationId,
+          fullName: 'Usuario OAuth',
+          email: user.email || 'oauth@user.com',
+        },
+        user: {
+          locationId: user.locationId,
+          hasTokens: !!(user.accessToken && user.refreshToken)
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error getting user by location:', error.stack);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Failed to get user information');
+    }
+  }
 }
