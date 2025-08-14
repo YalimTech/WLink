@@ -221,7 +221,9 @@ function CustomPageContent() {
       if (locationIdFromUrl) {
         setPageStatus('loaded');
         setLocationId(locationIdFromUrl);
+        // We assume if locationId is passed, they are authenticated via OAuth
         setGhlUser((prev) => ({ ...prev, hasTokens: true }));
+        console.log(`[WLINK_DEBUG] Initialized with locationId from URL: ${locationIdFromUrl}`);
       }
     } catch (err: any) {
       setPageStatus('error');
@@ -229,161 +231,109 @@ function CustomPageContent() {
     }
   }, [locationIdFromUrl]);
 
-  // Reemplazo del useEffect de inicialización: ahora incluye el handshake con GHL vía postMessage + polling
+  // Efecto de inicialización principal: Orquesta cómo se carga la aplicación.
   useEffect(() => {
-    // Si viene en la URL, usamos ese flujo y evitamos el handshake
+    // Escenario 1: Éxito de redirección de OAuth (el más prioritario)
+    // Si locationId viene en la URL, significa que el usuario acaba de completar
+    // el flujo de OAuth. No se necesita ningún handshake.
     if (locationIdFromUrl) {
+      console.log(`[WLINK_DEBUG] Init: Detectado locationId en la URL (${locationIdFromUrl}). Omitiendo handshake.`);
       processUser();
-      return () => {
-        if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
-        if (pollRef.current) clearInterval(pollRef.current);
-      };
+      return; // Detiene la ejecución del efecto aquí.
     }
 
-    console.log('[WLINK_DEBUG] 1. Proceso de carga iniciado.');
-    let timeoutId: NodeJS.Timeout;
-    let intervalId: NodeJS.Timeout;
+    // Escenario 2: La aplicación ya está cargada dentro de GHL
+    // Intenta obtener el contexto cifrado de varias fuentes sin el handshake.
+    const bootstrap = async () => {
+      // Intenta desde el objeto window (inyectado por el layout)
+      const encFromWindow = (window as any).__WLINK_GHL_ENC__;
+      if (encFromWindow && await tryBootstrapFromEncryptedData(encFromWindow)) {
+        console.log('[WLINK_DEBUG] Init: Bootstrap exitoso desde window.__WLINK_GHL_ENC__.');
+        return true;
+      }
+      // Intenta desde la cookie (establecida por el layout)
+      const encFromCookie = getCookie('wlink_ghlctx');
+      if (encFromCookie && await tryBootstrapFromEncryptedData(encFromCookie)) {
+        console.log('[WLINK_DEBUG] Init: Bootstrap exitoso desde la cookie.');
+        return true;
+      }
+      return false;
+    };
 
-    // 0) Bootstrap: intenta leer el contexto cifrado desde URL o Cookie antes del handshake
-    let handshakeStarted = false;
+    // Escenario 3: Fallback al handshake con postMessage
+    // Si los métodos anteriores fallan, se inicia la comunicación con el iframe padre.
     const startHandshake = () => {
-      handshakeStarted = true;
-      const processContext = (data: any) => {
-        console.log('[WLINK_DEBUG] 6. Contexto recibido, procesando datos...', data);
-        if (data && data.encryptedData) {
-          decryptUserData({ encryptedData: data.encryptedData });
-        } else {
-          setPageStatus('error');
-          setPageErrorMessage('Los datos recibidos de GoHighLevel son inválidos.');
-        }
+      console.log('[WLINK_DEBUG] Init: No se encontró contexto pre-cargado. Iniciando handshake con postMessage.');
+      let timeoutId: NodeJS.Timeout | null = null;
+      let intervalId: NodeJS.Timeout | null = null;
+
+      const cleanup = () => {
+        console.log('[WLINK_DEBUG] Handshake: Limpiando listeners y timers.');
+        window.removeEventListener('message', handleMessage);
+        if (timeoutId) clearTimeout(timeoutId);
+        if (intervalId) clearInterval(intervalId);
+        timeoutId = null;
+        intervalId = null;
       };
 
       const handleMessage = (event: MessageEvent) => {
-        console.log('[WLINK_DEBUG] 5. Mensaje recibido:', event);
+        // Lógica de handleMessage sin cambios...
         const origin = event.origin || '';
         let hostname = '';
-        try {
-          hostname = new URL(origin).hostname;
-        } catch (e) {
-          return;
-        }
-
-        console.log(`[WLINK_DEBUG] 5a. Origen del mensaje: ${hostname}`);
+        try { hostname = new URL(origin).hostname; } catch (e) { return; }
         const isTrustedOrigin = /(gohighlevel\.com|highlevel\.com|leadconnectorhq\.com|msgsndr\.com|leadconnector\.com|ludicrous\.cloud)$/.test(hostname);
+        
+        if (!isTrustedOrigin) return;
 
-        if (!isTrustedOrigin) {
-          console.warn(`[WLINK_DEBUG] 5b. >> MENSAJE IGNORADO: Origen no confiable: ${origin}`);
-          return;
-        }
-
-        console.log('[WLINK_DEBUG] 5c. Origen CONFIABLE.');
         const payload = (event as MessageEvent).data as any;
-
-        // Aceptar múltiples formatos posibles de mensaje desde GHL
-        const candidateEncrypted =
-          payload?.encryptedData ||
-          payload?.data?.encryptedData ||
-          payload?.context ||
-          payload?.data?.context ||
-          payload?.ghl_context ||
-          payload?.data?.ghl_context ||
-          payload?.ghlContext ||
-          payload?.data?.ghlContext;
+        const candidateEncrypted = payload?.encryptedData || payload?.data?.encryptedData || payload?.context || payload?.data?.context;
 
         if (candidateEncrypted) {
-          console.log('[WLINK_DEBUG] 5d. ¡ÉXITO! Encrypted context detectado en payload.');
-          clearTimeout(timeoutId);
-          clearInterval(intervalId);
-          window.removeEventListener('message', handleMessage);
-          processContext({ encryptedData: String(candidateEncrypted) });
-          return;
-        }
-
-        if (payload && payload.type === 'WLINK_CONTEXT' && payload.data) {
-          console.log('[WLINK_DEBUG] 5d. ¡ÉXITO! Contexto recibido. Limpiando tareas...');
-          clearTimeout(timeoutId);
-          clearInterval(intervalId);
-          window.removeEventListener('message', handleMessage);
-          processContext(payload.data);
-        } else {
-          console.log('[WLINK_DEBUG] 5e. Mensaje de origen confiable, pero no es el contexto esperado.');
+          console.log('[WLINK_DEBUG] Handshake: ¡Contexto recibido!');
+          cleanup();
+          decryptUserData({ encryptedData: String(candidateEncrypted) });
         }
       };
 
+      window.addEventListener('message', handleMessage);
+
       timeoutId = setTimeout(() => {
-        console.error('[WLINK_DEBUG] 7. ¡TIMEOUT! 15 segundos pasaron. No se recibió el contexto.');
-        clearInterval(intervalId);
-        window.removeEventListener('message', handleMessage);
+        console.error('[WLINK_DEBUG] Handshake: ¡TIMEOUT! No se recibió respuesta de GHL.');
+        cleanup();
         setPageStatus('error');
         setPageErrorMessage('Error de Acceso: No se recibieron datos de GoHighLevel a tiempo. Asegúrese de que la aplicación esté correctamente instalada.');
       }, 15000);
-      console.log('[WLINK_DEBUG] 2. Temporizador de 15 segundos activado.');
-
-      window.addEventListener('message', handleMessage);
-      console.log('[WLINK_DEBUG] 3. Escuchando mensajes de GHL.');
 
       intervalId = setInterval(() => {
-        console.log('[WLINK_DEBUG] 4. Pidiendo contexto a GHL...');
+        console.log('[WLINK_DEBUG] Handshake: Solicitando contexto a GHL...');
         try {
-          // Enviar varias señales de solicitud de contexto para ser compatibles con distintos envs
-          const requestTypes = ['WLINK_REQUEST_CONTEXT', 'GET_CONTEXT', 'REQUEST_CONTEXT', 'GHL_GET_CONTEXT', 'LEADCONNECTOR_GET_CONTEXT'];
-          requestTypes.forEach((type) => {
-            window.parent?.postMessage({ type }, '*');
-          });
+          window.parent?.postMessage({ type: 'WLINK_REQUEST_CONTEXT' }, '*');
         } catch (e) {
-          console.error('[WLINK_DEBUG] Error al intentar enviar postMessage:', e);
+          console.error('[WLINK_DEBUG] Handshake: Error enviando postMessage:', e);
         }
       }, 1000);
 
-      return () => {
-        console.log('[WLINK_DEBUG] 8. Limpiando componente.');
-        clearTimeout(timeoutId);
-        clearInterval(intervalId);
-        window.removeEventListener('message', handleMessage);
-        if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
-        if (pollRef.current) clearInterval(pollRef.current);
-      };
+      return cleanup; // Devuelve la función de limpieza
     };
 
-    (async () => {
-      // Prefer URL param first (e.g., if proxy injects it)
-      const encFromUrl = getEncryptedFromUrl();
-      if (encFromUrl) {
-        const ok = await tryBootstrapFromEncryptedData(encFromUrl);
-        if (ok) return; // Cargado sin handshake
+    let handshakeCleanup: (() => void) | null = null;
+    bootstrap().then(success => {
+      if (!success) {
+        handshakeCleanup = startHandshake();
       }
-
-      // Then try cookie set by proxy from x-ghl-context
-      const encFromCookie = getCookie('wlink_ghlctx') || getCookie('wlink_lcctx');
-      if (encFromCookie) {
-        const ok = await tryBootstrapFromEncryptedData(encFromCookie);
-        if (ok) return; // Cargado sin handshake
-      }
-
-      // Finally, check if server exposed it via window global
-      const encFromWindow = (typeof window !== 'undefined' && (window as any).__WLINK_GHL_ENC__) ? String((window as any).__WLINK_GHL_ENC__) : null;
-      if (encFromWindow) {
-        const ok = await tryBootstrapFromEncryptedData(encFromWindow);
-        if (ok) return;
-      }
-
-      // Fallback to postMessage handshake if nothing else worked
-      const cleanup = startHandshake();
-      // store cleanup in closure via return of effect
-      (startHandshake as any).cleanup = cleanup;
-    })();
-
+    });
+    
+    // Función de limpieza del useEffect
     return () => {
-      console.log('[WLINK_DEBUG] 8. Limpiando componente.');
-      if (handshakeStarted && (startHandshake as any).cleanup) {
-        try { (startHandshake as any).cleanup(); } catch {}
+      console.log('[WLINK_DEBUG] Cleanup: Desmontando el componente CustomPage.');
+      if (handshakeCleanup) {
+        handshakeCleanup();
       }
-      clearTimeout(timeoutId);
-      clearInterval(intervalId);
       if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [decryptUserData, processUser, locationIdFromUrl, getEncryptedFromUrl, getCookie, tryBootstrapFromEncryptedData]);
+
+  }, [locationIdFromUrl, processUser, tryBootstrapFromEncryptedData, getCookie, decryptUserData]);
 
   const loadInstances = useCallback(async () => {
     if (!locationId) return;
