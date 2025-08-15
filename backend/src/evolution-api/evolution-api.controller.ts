@@ -18,7 +18,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { EvolutionService } from "../evolution/evolution.service";
 import { EvolutionApiService } from "./evolution-api.service";
 import { AuthReq, CreateInstanceDto, UpdateInstanceDto } from "../types"; // Importa UpdateInstanceDto
-import { GhlContextGuard } from "./guards/ghl-context.guard";
+// import { GhlContextGuard } from "./guards/ghl-context.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
 @Controller("api/instances")

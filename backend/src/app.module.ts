@@ -6,7 +6,7 @@ import { EvolutionApiModule } from "./evolution-api/evolution-api.module";
 import { EvolutionModule } from "./evolution/evolution.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { OauthModule } from "./oauth/oauth.module";
-import { CustomPageModule } from "./custom-page/custom-page.module";
+// import { CustomPageModule } from "./custom-page/custom-page.module";
 import { AuthModule } from "./auth/auth.module";
 import { IframeModule } from "./iframe/iframe.module";
 
@@ -18,7 +18,6 @@ import { IframeModule } from "./iframe/iframe.module";
     EvolutionModule,
     WebhooksModule,
     OauthModule,
-    CustomPageModule,
     AuthModule,
     IframeModule,
   ],

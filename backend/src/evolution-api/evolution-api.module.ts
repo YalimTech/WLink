@@ -4,7 +4,7 @@ import { EvolutionApiTransformer } from "./evolution-api.transformer";
 import { EvolutionApiController } from "./evolution-api.controller";
 import { QrController } from "./qr.controller";
 import { EvolutionModule } from "../evolution/evolution.module";
-import { GhlContextGuard } from "./guards/ghl-context.guard";
+// import { GhlContextGuard } from "./guards/ghl-context.guard";
 import { ConfigModule } from "@nestjs/config";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
@@ -14,10 +14,9 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
     Logger,
     EvolutionApiService,
     EvolutionApiTransformer,
-    GhlContextGuard,
     JwtAuthGuard,
   ],
-  exports: [EvolutionApiService, EvolutionApiTransformer, GhlContextGuard],
+  exports: [EvolutionApiService, EvolutionApiTransformer],
   controllers: [EvolutionApiController, QrController],
 })
 export class EvolutionApiModule {}

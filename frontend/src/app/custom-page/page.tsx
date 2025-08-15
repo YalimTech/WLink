@@ -478,7 +478,7 @@ function CustomPageContent() {
       <Script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" strategy="lazyOnload" />
 
       <div className="flex flex-col items-center justify-center mb-6">
-                <Image src="/wlink-icon.png" alt="WLink Icono" width={64} height={64} className="h-16 w-16 mb-2" />
+                <Image src="/LogoIcon.jpg" alt="WLink Icono" width={64} height={64} className="h-16 w-16 mb-2" />
         <h1 className="text-3xl font-bold text-center text-gray-800">WhatsApp Integration</h1>
         <p className="text-gray-500 text-center">Manage your instances with ease</p>
       </div>

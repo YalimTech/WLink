@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { EvolutionService } from "../evolution/evolution.service";
-import { GhlContextGuard } from "./guards/ghl-context.guard";
+// import { GhlContextGuard } from "./guards/ghl-context.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthReq } from "../types";
 
