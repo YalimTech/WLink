@@ -45,12 +45,18 @@ function AuthBootstrap() {
   const token = searchParams.get('token');
 
   if (!token) {
+    if (typeof window !== 'undefined') {
+      try {
+        window.location.replace('/api/app/iframe-loader');
+      } catch {}
+    }
     return (
       <div className="bg-gray-100 p-4 sm:p-6 min-h-screen flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full text-center">
           <div className="text-red-500 text-5xl mb-4">❌</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Acceso no autorizado</h1>
           <p className="text-gray-600">Falta el token de sesión. Accede desde GoHighLevel.</p>
+          <p className="text-gray-500 text-sm mt-4">Redirigiendo al cargador seguro…</p>
         </div>
       </div>
     );
