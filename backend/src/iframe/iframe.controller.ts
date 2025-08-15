@@ -1,11 +1,12 @@
-import { Controller, Get, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Get, Res, Req } from '@nestjs/common';
+import { Response, Request } from 'express';
 
 @Controller('api/app')
 export class IframeController {
   @Get('iframe-loader')
-  serveIframeLoader(@Res() res: Response) {
+  serveIframeLoader(@Req() req: Request, @Res() res: Response) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const encHeader = (req.headers['x-ghl-context'] as string) || (req.headers['x-lc-context'] as string) || '';
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -28,6 +29,7 @@ export class IframeController {
         <script>
           const FRONTEND_URL = ${JSON.stringify(frontendUrl)};
           const BACKEND_API_URL = '/api/auth/start-session-from-iframe';
+          const PRE_LOADED_ENC = ${JSON.stringify(encHeader)};
 
           function requestContext() {
             try { window.parent.postMessage({ type: 'WLINK_REQUEST_CONTEXT' }, '*'); } catch {}
@@ -40,23 +42,28 @@ export class IframeController {
             const isTrustedOrigin = /(gohighlevel\\.com|highlevel\\.com|leadconnectorhq\\.com|msgsndr\\.com|leadconnector\\.com|ludicrous\\.cloud)$/.test(hostname);
             if (!isTrustedOrigin) return;
 
-            const encryptedData = event.data?.encryptedData || event.data?.context;
+            const d = event.data || {};
+            const encryptedData = d.encryptedData || d.context || d?.data?.encryptedData || d?.data?.context;
             if (encryptedData) {
               window.removeEventListener('message', handleGHLResponse);
-              fetch(BACKEND_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ encryptedData })
-              }).then(r => r.json()).then(data => {
-                if (data && data.success && data.sessionToken) {
-                  window.location.replace(FRONTEND_URL + '/custom-page?token=' + encodeURIComponent(data.sessionToken));
-                } else {
-                  document.body.innerHTML = '<div class="container"><p>Authentication failed. Please try again.</p></div>'
-                }
-              }).catch(() => {
-                document.body.innerHTML = '<div class="container"><p>An error occurred. Please try again.</p></div>'
-              })
+              startSession(encryptedData);
             }
+          }
+
+          function startSession(encryptedData) {
+            fetch(BACKEND_API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ encryptedData })
+            }).then(r => r.json()).then(data => {
+              if (data && data.success && data.sessionToken) {
+                window.location.replace(FRONTEND_URL + '/custom-page?token=' + encodeURIComponent(data.sessionToken));
+              } else {
+                document.body.innerHTML = '<div class="container"><p>Authentication failed. Please try again.</p></div>'
+              }
+            }).catch(() => {
+              document.body.innerHTML = '<div class="container"><p>An error occurred. Please try again.</p></div>'
+            })
           }
 
           window.addEventListener('message', handleGHLResponse);
@@ -66,7 +73,15 @@ export class IframeController {
             if (!/\\btoken=/.test(window.location.href)) {
               document.body.innerHTML = '<div class="container"><p>Authentication timed out. Please refresh and try again.</p></div>'
             }
-          }, 15000);
+          }, 25000);
+
+          if (PRE_LOADED_ENC) {
+            // Si GHL ya envió el contexto como header, usarlo al instante
+            try { startSession(PRE_LOADED_ENC); } catch {}
+          } else {
+            // Solicitar inmediatamente si no hay header
+            requestContext();
+          }
         </script>
       </body>
       </html>
