@@ -19,9 +19,9 @@ export class AuthController {
 
   @Post("start-session-from-iframe")
   async startSessionFromIframe(
-    @Body() body: { encryptedData?: string },
+    @Body() body: { encryptedData?: string; context?: string; ghl_context?: string },
   ): Promise<{ success: boolean; sessionToken?: string; message?: string }> {
-    const { encryptedData } = body || {};
+    const encryptedData = body?.encryptedData || body?.context || body?.ghl_context;
     if (!encryptedData) {
       throw new HttpException("Missing encryptedData", HttpStatus.BAD_REQUEST);
     }

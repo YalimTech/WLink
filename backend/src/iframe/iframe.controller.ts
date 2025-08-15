@@ -6,7 +6,9 @@ export class IframeController {
   @Get('iframe-loader')
   serveIframeLoader(@Req() req: Request, @Res() res: Response) {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const q = req.query || {} as any;
     const encHeader = (req.headers['x-ghl-context'] as string) || (req.headers['x-lc-context'] as string) || '';
+    const encQuery = (q.context as string) || (q.encryptedData as string) || (q['x-ghl-context'] as string) || '';
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -29,7 +31,7 @@ export class IframeController {
         <script>
           const FRONTEND_URL = ${JSON.stringify(frontendUrl)};
           const BACKEND_API_URL = '/api/auth/start-session-from-iframe';
-          const PRE_LOADED_ENC = ${JSON.stringify(encHeader)};
+          const PRE_LOADED_ENC = ${JSON.stringify(encQuery || encHeader)};
 
           function requestContext() {
             try { window.parent.postMessage({ type: 'WLINK_REQUEST_CONTEXT' }, '*'); } catch {}
