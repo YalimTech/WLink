@@ -11,10 +11,11 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Request, Response } from "express";
-import axios from "axios";
 import { PrismaService } from "../prisma/prisma.service";
 import { GhlOAuthCallbackDto } from "./dto/ghl-oauth-callback.dto";
 import { EvolutionApiService } from "../evolution-api/evolution-api.service";
+import { GhlApiV2Service } from "./ghl-api-v2.service";
+import { createCipheriv, randomBytes, createHash } from "crypto";
 
 @Controller("oauth")
 export class GhlOauthController {
@@ -25,6 +26,7 @@ export class GhlOauthController {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly evolutionApiService: EvolutionApiService,
+    private readonly ghlApiV2: GhlApiV2Service,
   ) {
     this.logger = new Logger(GhlOauthController.name); // Inicializado en el constructor
   }
@@ -55,42 +57,18 @@ export class GhlOauthController {
       );
     }
 
-    const clientId = this.configService.get<string>("GHL_CLIENT_ID")!;
-    const clientSecret = this.configService.get<string>("GHL_CLIENT_SECRET")!;
     const appUrl = this.configService.get<string>("APP_URL")!;
 
     this.logger.log(`[OAuth Callback] APP_URL: ${appUrl}`);
 
-    const tokenRequestBody = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "authorization_code",
-      code: code,
-      redirect_uri: `${appUrl}/oauth/callback`,
-      user_type: "Location",
-    });
-
     try {
-      this.logger.log("[OAuth Callback] Intercambiando código por tokens...");
-
-      const tokenResponse = await axios.post(
-        `${this.ghlServicesUrl}/oauth/token`,
-        tokenRequestBody.toString(),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-      );
-
-      const {
-        access_token,
-        refresh_token,
-        expires_in,
-        companyId: respCompanyId,
-        locationId: respLocationId,
-      } = tokenResponse.data;
+      this.logger.log("[OAuth Callback] Intercambiando código por tokens (via GhlApiV2Service)...");
+      const { access_token, refresh_token, expires_in, companyId: respCompanyId, locationId: respLocationId } =
+        await this.ghlApiV2.exchangeCodeForTokens(code);
 
       if (!respLocationId) {
         this.logger.error(
           "[OAuth Callback] Error: No se recibió locationId en la respuesta de GHL",
-          tokenResponse.data,
         );
         throw new HttpException(
           "Failed to get Location ID from GHL token response.",
@@ -100,10 +78,12 @@ export class GhlOauthController {
 
       const tokenExpiresAt = new Date(Date.now() + expires_in * 1000);
 
+      const { encryptedAccess, encryptedRefresh } = this.encryptTokens(access_token, refresh_token);
+
       await this.prisma.createUser({
         locationId: respLocationId,
-        accessToken: access_token,
-        refreshToken: refresh_token,
+        accessToken: encryptedAccess,
+        refreshToken: encryptedRefresh,
         tokenExpiresAt,
         companyId: respCompanyId,
       });
@@ -191,5 +171,23 @@ export class GhlOauthController {
         error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  private encryptTokens(accessToken: string, refreshToken: string): { encryptedAccess: string; encryptedRefresh: string } {
+    const secret = this.configService.get<string>("TOKEN_ENCRYPTION_KEY") || this.configService.get<string>("GHL_SHARED_SECRET") || "fallback-secret";
+    const key = createHash("sha256").update(secret).digest();
+    const iv = randomBytes(16);
+
+    const cipherA = createCipheriv("aes-256-cbc", key, iv);
+    const encA = Buffer.concat([cipherA.update(accessToken, "utf8"), cipherA.final()]).toString("base64");
+
+    const cipherR = createCipheriv("aes-256-cbc", key, iv);
+    const encR = Buffer.concat([cipherR.update(refreshToken, "utf8"), cipherR.final()]).toString("base64");
+
+    const ivB64 = iv.toString("base64");
+    return {
+      encryptedAccess: `${ivB64}:${encA}`,
+      encryptedRefresh: `${ivB64}:${encR}`,
+    };
   }
 }

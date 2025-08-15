@@ -21,6 +21,7 @@ import {
   GhlContactUpsertResponse,
   InstanceState,
 } from "../types";
+import { createDecipheriv, createCipheriv, createHash, randomBytes } from "crypto";
 
 @Injectable()
 export class EvolutionApiService extends BaseAdapter<
@@ -56,7 +57,7 @@ export class EvolutionApiService extends BaseAdapter<
       );
     }
 
-    let currentAccessToken = userWithTokens.accessToken;
+    let currentAccessToken = this.decryptToken(userWithTokens.accessToken || "");
     const willExpireSoon =
       userWithTokens.tokenExpiresAt &&
       new Date(userWithTokens.tokenExpiresAt).getTime() <
@@ -68,13 +69,15 @@ export class EvolutionApiService extends BaseAdapter<
       );
       try {
         const newTokens = await this.refreshGhlAccessToken(
-          userWithTokens.refreshToken,
+          this.decryptToken(userWithTokens.refreshToken || ""),
         );
         // CAMBIO: Usar 'locationId' para actualizar tokens de usuario
+        const encAccess = this.encryptToken(newTokens.access_token);
+        const encRefresh = this.encryptToken(newTokens.refresh_token);
         await this.prisma.updateUserTokens(
           ghlLocationId,
-          newTokens.access_token,
-          newTokens.refresh_token,
+          encAccess,
+          encRefresh,
           new Date(Date.now() + newTokens.expires_in * 1000),
         );
         currentAccessToken = newTokens.access_token;
@@ -113,6 +116,43 @@ export class EvolutionApiService extends BaseAdapter<
       },
     );
     return response.data;
+  }
+
+  private getEncryptionKey() {
+    const secret =
+      this.configService.get<string>("TOKEN_ENCRYPTION_KEY") ||
+      this.configService.get<string>("GHL_SHARED_SECRET") ||
+      "fallback-secret";
+    return createHash("sha256").update(secret).digest();
+  }
+
+  private encryptToken(raw: string): string {
+    if (!raw) return raw;
+    try {
+      const key = this.getEncryptionKey();
+      const iv = randomBytes(16);
+      const cipher = createCipheriv("aes-256-cbc", key, iv);
+      const enc = Buffer.concat([cipher.update(raw, "utf8"), cipher.final()]).toString("base64");
+      return `${iv.toString("base64")}:${enc}`;
+    } catch {
+      return raw;
+    }
+  }
+
+  private decryptToken(stored: string): string {
+    if (!stored) return stored;
+    try {
+      const [ivB64, encB64] = stored.split(":");
+      if (!ivB64 || !encB64) return stored; // Assume plaintext
+      const key = this.getEncryptionKey();
+      const iv = Buffer.from(ivB64, "base64");
+      const encrypted = Buffer.from(encB64, "base64");
+      const decipher = createDecipheriv("aes-256-cbc", key, iv);
+      const dec = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+      return dec;
+    } catch {
+      return stored; // Fallback for legacy plaintext
+    }
   }
 
   /**

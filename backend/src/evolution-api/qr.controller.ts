@@ -14,10 +14,11 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { EvolutionService } from "../evolution/evolution.service";
 import { GhlContextGuard } from "./guards/ghl-context.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AuthReq } from "../types";
 
 @Controller("api/qr")
-@UseGuards(GhlContextGuard)
+@UseGuards(JwtAuthGuard)
 export class QrController {
   constructor(
     private readonly logger: Logger,

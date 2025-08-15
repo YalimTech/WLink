@@ -1,39 +1,18 @@
 // wlink/frontend/src/app/custom-page/page.tsx
 'use client';
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, createContext, useContext } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import axios from 'axios';
 import Script from 'next/script';
 
-// --- Interfaces de Datos ---
 interface Instance {
   id: string;
   instanceName: string;
-  token: string;
   state: 'starting' | 'qr_code' | 'authorized' | 'notAuthorized' | 'blocked' | 'yellowCard' | 'disconnected' | string;
   customName?: string;
   createdAt: string;
   instanceId?: string;
-}
-
-interface GhlUserData {
-  fullName?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  activeLocation?: string;
-}
-
-interface DecryptResponse {
-  success: boolean;
-  locationId?: string;
-  userData?: GhlUserData;
-  user?: {
-    locationId: string;
-    hasTokens: boolean;
-  };
-  message?: string;
 }
 
 interface ModalState {
@@ -49,61 +28,43 @@ interface QrApiResponse {
   data: string;
 }
 
+type AuthContextValue = { token: string | null };
+const AuthContext = createContext<AuthContextValue>({ token: null });
+const useAuth = () => useContext(AuthContext);
+
 export default function CustomPage() {
   return (
     <Suspense fallback={<div className="p-6">Cargando...</div>}>
-      <CustomPageContent />
+      <AuthBootstrap />
     </Suspense>
   );
 }
 
-// Componente de estado de carga inicial
-function LoadingState() {
-  return (
-    <div className="bg-gray-100 p-4 sm:p-6 min-h-screen flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
-        <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full text-blue-500" role="status">
-          <span className="visually-hidden">Cargando...</span>
+function AuthBootstrap() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+
+  if (!token) {
+    return (
+      <div className="bg-gray-100 p-4 sm:p-6 min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full text-center">
+          <div className="text-red-500 text-5xl mb-4">❌</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Acceso no autorizado</h1>
+          <p className="text-gray-600">Falta el token de sesión. Accede desde GoHighLevel.</p>
         </div>
-        <style jsx>{`
-          .spinner-border {
-            border-top-color: #3498db;
-            border-right-color: transparent;
-            border-bottom-color: transparent;
-            border-left-color: transparent;
-            animation: spin 0.8s linear infinite;
-          }
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          .visually-hidden {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-          }
-        `}</style>
-        <h1 className="text-2xl font-bold text-gray-800 mt-4">Cargando...</h1>
-        <p className="text-gray-600">Validando datos del usuario...</p>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <AuthContext.Provider value={{ token }}>
+      <CustomPageContent />
+    </AuthContext.Provider>
   );
 }
 
-// Componente principal que contiene toda la lógica y UI
 function CustomPageContent() {
-  const searchParams = useSearchParams();
-  const locationIdFromUrl = searchParams.get('locationId');
-
-
-  const [locationId, setLocationId] = useState<string | null>(null);
-  const [encrypted, setEncrypted] = useState<string | null>(null); // deprecated: postMessage flow no longer required
+  const { token } = useAuth();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [form, setForm] = useState({ instanceName: '', token: '', customName: '' });
   const [qr, setQr] = useState('');
@@ -111,16 +72,13 @@ function CustomPageContent() {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrDisplayContent, setQrDisplayContent] = useState<React.ReactNode>(null);
   const [modal, setModal] = useState<ModalState>({ show: false, message: '', type: 'info', onConfirm: null, onCancel: null });
-  const [ghlUser, setGhlUser] = useState({ name: 'Cargando...', email: 'Cargando...', hasTokens: false });
-  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
-  const [editingCustomName, setEditingCustomName] = useState('');
   const [pageStatus, setPageStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [pageErrorMessage, setPageErrorMessage] = useState<string | null>(null);
-
+  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null);
+  const [editingCustomName, setEditingCustomName] = useState<string>('');
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const mainIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const qrInstanceIdRef = useRef<string | null>(null);
-  
 
   const showModal = useCallback((message: string, type: 'info' | 'success' | 'error' | 'confirm' = 'info', onConfirm: (() => void) | null = null, onCancel: (() => void) | null = null) => {
     setModal({ show: true, message, type, onConfirm, onCancel });
@@ -130,81 +88,15 @@ function CustomPageContent() {
     setModal({ show: false, message: '', type: 'info', onConfirm: null, onCancel: null });
   }, []);
 
-  // Nueva función: desencripta datos recibidos desde GHL y establece el estado de la página
-  const decryptUserData = useCallback(async ({ encryptedData }: { encryptedData: string }) => {
-    console.log('[WLINK_DEBUG] 6a. Enviando datos cifrados al backend para desencriptar...');
-    try {
-      const response = await axios.post<DecryptResponse>('/api/decrypt-user-data', { encryptedData });
-      const data = response.data;
-      if (data && data.success && data.locationId) {
-        const name = data.userData?.fullName || [data.userData?.firstName, data.userData?.lastName].filter(Boolean).join(' ') || 'Usuario';
-        const email = data.userData?.email || 'N/D';
-        setLocationId(data.locationId);
-        setGhlUser({ name, email, hasTokens: !!data.user?.hasTokens });
-        setPageStatus('loaded');
-        console.log('[WLINK_DEBUG] 6b. Datos procesados correctamente. locationId:', data.locationId);
-      } else {
-        setPageStatus('error');
-        setPageErrorMessage('Los datos recibidos de GoHighLevel son inválidos.');
-      }
-    } catch (err: any) {
-      console.error('[WLINK_DEBUG] Error desencriptando datos:', err);
-      setPageStatus('error');
-      setPageErrorMessage('Error al procesar datos de GoHighLevel: ' + (err.message || String(err)));
-    }
-  }, []);
-
-  // Intenta bootstrap inmediato leyendo el contexto cifrado desde cookie o query param
-  const tryBootstrapFromEncryptedData = useCallback(async (encryptedData: string): Promise<boolean> => {
-    try {
-      if (!encryptedData || encryptedData.length < 8) return false;
-      const response = await axios.post<DecryptResponse>('/api/decrypt-user-data', { encryptedData });
-      const data = response.data;
-      if (data && data.success && data.locationId) {
-        const name = data.userData?.fullName || [data.userData?.firstName, data.userData?.lastName].filter(Boolean).join(' ') || 'Usuario';
-        const email = data.userData?.email || 'N/D';
-        setLocationId(data.locationId);
-        setGhlUser({ name, email, hasTokens: !!data.user?.hasTokens });
-        setPageStatus('loaded');
-        return true;
-      }
-      return false;
-    } catch (e) {
-      // Silencioso: si falla, retornamos false para permitir fallback al handshake
-      return false;
-    }
-  }, []);
-
-  const getCookie = useCallback((name: string): string | null => {
-    if (typeof document === 'undefined') return null;
-    const value = (`; ${document.cookie}`).split(`; ${name}=`).pop();
-    if (!value) return null;
-    const raw = value.split(';').shift() || '';
-    try {
-      return decodeURIComponent(raw.replace(/^"|"$/g, ''));
-    } catch {
-      return raw.replace(/^"|"$/g, '');
-    }
-  }, []);
-
-  const getEncryptedFromUrl = useCallback((): string | null => {
-    const keys = ['encryptedData', 'x-ghl-context', 'ghl_context', 'ghlctx', 'x-lc-context', 'lc_context', 'lcctx', 'context'];
-    for (const key of keys) {
-      const v = searchParams.get(key);
-      if (v) return v;
-    }
-    return null;
-  }, [searchParams]);
-
   const makeApiRequest = useCallback(async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
-    const baseUrl = '';
-    const url = `${baseUrl}${path}${path.includes('?') ? '&' : '?'}locationId=${encodeURIComponent(locationId || '')}`;
+    const url = `${path}`;
     try {
       const response = await axios({
-        url: url,
+        url,
         method: options.method || 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           ...(options.headers as Record<string, string> || {}),
         },
         data: options.body,
@@ -214,200 +106,34 @@ function CustomPageContent() {
       const errorMessage = error.response?.data?.message || error.message || 'API request failed';
       throw new Error(errorMessage);
     }
-  }, [locationId]);
-
-  const processUser = useCallback(async () => {
-    try {
-      if (locationIdFromUrl) {
-        console.log(`[WLINK_DEBUG] Processing user with locationId from URL: ${locationIdFromUrl}`);
-        
-        // Llamar al nuevo endpoint para obtener datos del usuario por locationId
-        try {
-          const response = await axios.post<DecryptResponse>('/api/get-user-by-location', { 
-            locationId: locationIdFromUrl 
-          });
-          const data = response.data;
-          
-          if (data && data.success) {
-            const name = data.userData?.fullName || 'Usuario OAuth';
-            const email = data.userData?.email || 'oauth@user.com';
-            setLocationId(locationIdFromUrl);
-            setGhlUser({ 
-              name, 
-              email, 
-              hasTokens: data.user?.hasTokens || false 
-            });
-            setPageStatus('loaded');
-            console.log(`[WLINK_DEBUG] User data loaded successfully via OAuth flow`);
-          } else {
-            throw new Error('Invalid response from server');
-          }
-        } catch (apiError: any) {
-          console.error('[WLINK_DEBUG] Error fetching user data:', apiError);
-          // Fallback: cargar la página con datos mínimos
-          setLocationId(locationIdFromUrl);
-          setGhlUser({
-            name: 'Usuario OAuth',
-            email: 'oauth@user.com',
-            hasTokens: true // Asumimos que si viene de OAuth, tiene tokens
-          });
-          setPageStatus('loaded');
-        }
-      }
-    } catch (err: any) {
-      setPageStatus('error');
-      setPageErrorMessage('Falló la carga inicial: ' + err.message);
-    }
-  }, [locationIdFromUrl]);
-
-  // Efecto de inicialización principal: Orquesta cómo se carga la aplicación.
-  useEffect(() => {
-    // Escenario 1: Éxito de redirección de OAuth (el más prioritario)
-    // Si locationId viene en la URL, significa que el usuario acaba de completar
-    // el flujo de OAuth. No se necesita ningún handshake.
-    if (locationIdFromUrl) {
-      console.log(`[WLINK_DEBUG] Init: Detectado locationId en la URL (${locationIdFromUrl}). Omitiendo handshake.`);
-      processUser();
-      return; // Detiene la ejecución del efecto aquí.
-    }
-
-    // Escenario 2: La aplicación ya está cargada dentro de GHL
-    // Intenta obtener el contexto cifrado de varias fuentes sin el handshake.
-    const bootstrap = async () => {
-      // Intenta desde el objeto window (inyectado por el layout)
-      const encFromWindow = (window as any).__WLINK_GHL_ENC__;
-      if (encFromWindow && await tryBootstrapFromEncryptedData(encFromWindow)) {
-        console.log('[WLINK_DEBUG] Init: Bootstrap exitoso desde window.__WLINK_GHL_ENC__.');
-        return true;
-      }
-      // Intenta desde la cookie (establecida por el layout)
-      const encFromCookie = getCookie('wlink_ghlctx');
-      if (encFromCookie && await tryBootstrapFromEncryptedData(encFromCookie)) {
-        console.log('[WLINK_DEBUG] Init: Bootstrap exitoso desde la cookie.');
-        return true;
-      }
-      return false;
-    };
-
-    // Escenario 3: Fallback al handshake con postMessage
-    // Si los métodos anteriores fallan, se inicia la comunicación con el iframe padre.
-    const startHandshake = () => {
-      console.log('[WLINK_DEBUG] Init: No se encontró contexto pre-cargado. Iniciando handshake con postMessage.');
-      let timeoutId: NodeJS.Timeout | null = null;
-      let intervalId: NodeJS.Timeout | null = null;
-
-      const cleanup = () => {
-        console.log('[WLINK_DEBUG] Handshake: Limpiando listeners y timers.');
-        window.removeEventListener('message', handleMessage);
-        if (timeoutId) clearTimeout(timeoutId);
-        if (intervalId) clearInterval(intervalId);
-        timeoutId = null;
-        intervalId = null;
-      };
-
-      const handleMessage = (event: MessageEvent) => {
-        // Lógica de handleMessage sin cambios...
-        const origin = event.origin || '';
-        let hostname = '';
-        try { hostname = new URL(origin).hostname; } catch (e) { return; }
-        const isTrustedOrigin = /(gohighlevel\.com|highlevel\.com|leadconnectorhq\.com|msgsndr\.com|leadconnector\.com|ludicrous\.cloud)$/.test(hostname);
-        
-        if (!isTrustedOrigin) return;
-
-        const payload = (event as MessageEvent).data as any;
-        const candidateEncrypted = payload?.encryptedData || payload?.data?.encryptedData || payload?.context || payload?.data?.context;
-
-        if (candidateEncrypted) {
-          console.log('[WLINK_DEBUG] Handshake: ¡Contexto recibido!');
-          cleanup();
-          decryptUserData({ encryptedData: String(candidateEncrypted) });
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
-
-      timeoutId = setTimeout(() => {
-        console.error('[WLINK_DEBUG] Handshake: ¡TIMEOUT! No se recibió respuesta de GHL.');
-        cleanup();
-        setPageStatus('error');
-        setPageErrorMessage('Error de Acceso: No se recibieron datos de GoHighLevel a tiempo. Asegúrese de que la aplicación esté correctamente instalada.');
-      }, 15000);
-
-      intervalId = setInterval(() => {
-        console.log('[WLINK_DEBUG] Handshake: Solicitando contexto a GHL...');
-        try {
-          window.parent?.postMessage({ type: 'WLINK_REQUEST_CONTEXT' }, '*');
-        } catch (e) {
-          console.error('[WLINK_DEBUG] Handshake: Error enviando postMessage:', e);
-        }
-      }, 1000);
-
-      return cleanup; // Devuelve la función de limpieza
-    };
-
-    let handshakeCleanup: (() => void) | null = null;
-    bootstrap().then(success => {
-      if (!success) {
-        handshakeCleanup = startHandshake();
-      }
-    });
-    
-    // Función de limpieza del useEffect
-    return () => {
-      console.log('[WLINK_DEBUG] Cleanup: Desmontando el componente CustomPage.');
-      if (handshakeCleanup) {
-        handshakeCleanup();
-      }
-      if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-
-  }, [locationIdFromUrl, processUser, tryBootstrapFromEncryptedData, getCookie, decryptUserData]);
+  }, [token]);
 
   const loadInstances = useCallback(async () => {
-    if (!locationId) return;
+    if (!token) return;
     try {
       const data: { instances: Instance[] } = await makeApiRequest('/api/instances');
       setInstances(data.instances);
-
-      if (showQr && qrInstanceIdRef.current) {
-        const currentInstance = data.instances.find(inst => String(inst.id) === String(qrInstanceIdRef.current));
-        if (currentInstance && currentInstance.state !== 'qr_code' && currentInstance.state !== 'starting') {
-          console.log('Main polling: Closing QR modal as state is now ' + currentInstance.state + '.');
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = null;
-          setShowQr(false);
-          setQr('');
-          qrInstanceIdRef.current = null;
-          if (currentInstance.state === 'authorized') {
-            showModal('Instancia conectada exitosamente!', 'success');
-          } else {
-            showModal('La conexión de la instancia cambió de estado. Verifique el panel.', 'info');
-          }
-        } else if (!currentInstance) {
-          console.log('Main polling: Closing QR modal as instance no longer exists.');
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = null;
-          setShowQr(false);
-          setQr('');
-          qrInstanceIdRef.current = null;
-          showModal('La instancia ha sido eliminada o no existe.', 'error');
-        }
-      }
     } catch (e: any) {
       console.error('Failed to load instances in main polling:', e);
     }
-  }, [locationId, makeApiRequest, showQr, showModal]);
+  }, [token, makeApiRequest]);
+
+  useEffect(() => {
+    if (!token) return;
+    setPageStatus('loaded');
+    loadInstances();
+    if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
+    mainIntervalRef.current = setInterval(loadInstances, 3000);
+    return () => {
+      if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
+    };
+  }, [token, loadInstances]);
 
   const createInstance = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!locationId) {
-      showModal('Error: No se ha cargado el Location ID. Intente recargar la página.', 'error');
-      return;
-    }
     try {
       const payload = {
-        locationId,
+        locationId: 'self',
         instanceName: form.instanceName,
         token: form.token,
         customName: form.customName,
@@ -423,7 +149,7 @@ function CustomPageContent() {
       console.error('Error creating instance:', err);
       showModal('Error al crear instancia: ' + err.message, 'error');
     }
-  }, [form, locationId, makeApiRequest, loadInstances, showModal]);
+  }, [form, makeApiRequest, loadInstances, showModal]);
 
   const generateQrFromString = useCallback(async (text: string): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -594,12 +320,38 @@ function CustomPageContent() {
   }, [showModal]);
 
   useEffect(() => {
-    if (locationId && pageStatus === 'loaded') {
-      loadInstances();
-      if (mainIntervalRef.current) clearInterval(mainIntervalRef.current);
-      mainIntervalRef.current = setInterval(loadInstances, 3000);
+    if (showQr && qrInstanceIdRef.current) {
+      // Maintain polling to close QR modal when state changes
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(async () => {
+        try {
+          const data: { instances: Instance[] } = await makeApiRequest('/api/instances');
+          const currentInstance = data.instances.find(inst => String(inst.id) === String(qrInstanceIdRef.current));
+          setInstances(data.instances);
+          if (currentInstance && currentInstance.state !== 'qr_code' && currentInstance.state !== 'starting') {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            setShowQr(false);
+            setQr('');
+            qrInstanceIdRef.current = null;
+            if (currentInstance.state === 'authorized') {
+              showModal('Instancia conectada exitosamente!', 'success');
+            } else {
+              showModal('La conexión de la instancia cambió de estado. Verifique el panel.', 'info');
+            }
+          }
+        } catch {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setShowQr(false);
+          setQr('');
+          qrInstanceIdRef.current = null;
+          showModal('Error al verificar estado del QR. Intente de nuevo.', 'error');
+        }
+      }, 2000);
     }
-  }, [locationId, pageStatus, loadInstances]);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [showQr, makeApiRequest, showModal]);
 
   useEffect(() => {
     console.log('QR useEffect triggered. showQr:', showQr, 'qr data present:', !!qr);
@@ -651,7 +403,7 @@ function CustomPageContent() {
             }
           `}</style>
           <h1 className="text-2xl font-bold text-gray-800 mt-4">Cargando...</h1>
-          <p className="text-gray-600">Validando datos del usuario...</p>
+          <p className="text-gray-600">Validando sesión...</p>
         </div>
       </div>
     );
@@ -732,26 +484,10 @@ function CustomPageContent() {
       </div>
 
       <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-          <i className="fas fa-signal text-blue-500 mr-2"></i> Estado de Conexión
+        <h2 className="text-xl font-semibold text-gray-700 mb-0 flex items-center">
+          <i className="fas fa-shield-alt text-green-500 mr-2"></i> Sesión autenticada
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-          <div>
-            <p><i className="fas fa-user text-gray-400 mr-2"></i> <strong>Usuario:</strong> {ghlUser.name}</p>
-            <p><i className="fas fa-envelope text-gray-400 mr-2"></i> <strong>Email:</strong> {ghlUser.email}</p>
-            <p><i className="fas fa-map-marker-alt text-gray-400 mr-2"></i> <strong>Location ID:</strong> {locationId || 'Cargando...'}</p>
-          </div>
-          <div>
-            <p><i className="fas fa-shield-alt text-green-500 mr-2"></i> <strong>Estado OAuth:</strong></p>
-            <p className="ml-6">
-              {ghlUser.hasTokens ? (
-                <><i className="fas fa-check-circle text-green-500 mr-2"></i> Autenticado y listo</>
-              ) : (
-                <><i className="fas fa-exclamation-triangle text-yellow-500 mr-2"></i> No Autenticado</>
-              )}
-            </p>
-          </div>
-        </div>
+        <p className="text-gray-500">Tu sesión JWT está activa para gestionar tus instancias.</p>
       </div>
 
       <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-sm">

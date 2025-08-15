@@ -19,6 +19,7 @@ services:
       - EVOLUTION_CONSOLE_URL=${EVOLUTION_CONSOLE_URL}
       - GHL_SHARED_SECRET=${GHL_SHARED_SECRET}
       - INSTANCE_TOKEN=${INSTANCE_TOKEN}
+      - JWT_SECRET=${JWT_SECRET}
 
     restart: unless-stopped
 

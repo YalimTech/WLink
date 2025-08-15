@@ -6,6 +6,7 @@ import { QrController } from "./qr.controller";
 import { EvolutionModule } from "../evolution/evolution.module";
 import { GhlContextGuard } from "./guards/ghl-context.guard";
 import { ConfigModule } from "@nestjs/config";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
 @Module({
   imports: [EvolutionModule, ConfigModule],
@@ -14,6 +15,7 @@ import { ConfigModule } from "@nestjs/config";
     EvolutionApiService,
     EvolutionApiTransformer,
     GhlContextGuard,
+    JwtAuthGuard,
   ],
   exports: [EvolutionApiService, EvolutionApiTransformer, GhlContextGuard],
   controllers: [EvolutionApiController, QrController],

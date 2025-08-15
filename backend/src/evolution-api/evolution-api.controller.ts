@@ -19,9 +19,10 @@ import { EvolutionService } from "../evolution/evolution.service";
 import { EvolutionApiService } from "./evolution-api.service";
 import { AuthReq, CreateInstanceDto, UpdateInstanceDto } from "../types"; // Importa UpdateInstanceDto
 import { GhlContextGuard } from "./guards/ghl-context.guard";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 
 @Controller("api/instances")
-@UseGuards(GhlContextGuard)
+@UseGuards(JwtAuthGuard)
 export class EvolutionApiController {
   constructor(
     private readonly logger: Logger,
@@ -105,12 +106,6 @@ export class EvolutionApiController {
   @Post()
   async createInstance(@Req() req: AuthReq, @Body() dto: CreateInstanceDto) {
     const { locationId } = req;
-    if (locationId !== dto.locationId) {
-      throw new HttpException(
-        "Context and payload locationId mismatch.",
-        HttpStatus.FORBIDDEN,
-      );
-    }
     // Validar los campos del DTO según la nueva nomenclatura
     // CAMBIO: Usar dto.instanceName en lugar de dto.evolutionApiInstanceId
     if (!dto.instanceName || !dto.token) {
@@ -124,7 +119,7 @@ export class EvolutionApiController {
       // CAMBIO: Usar los nuevos nombres de parámetros
       const instance =
         await this.evolutionApiService.createEvolutionApiInstanceForUser(
-          dto.locationId,
+          locationId,
           dto.instanceName, // Pasar el Evolution API Instance Name
           dto.token, // Pasar el Token de API
           dto.customName, // Pasar el customName (puede ser undefined si es opcional)

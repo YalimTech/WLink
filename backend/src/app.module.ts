@@ -7,6 +7,8 @@ import { EvolutionModule } from "./evolution/evolution.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { OauthModule } from "./oauth/oauth.module";
 import { CustomPageModule } from "./custom-page/custom-page.module";
+import { AuthModule } from "./auth/auth.module";
+import { IframeModule } from "./iframe/iframe.module";
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { CustomPageModule } from "./custom-page/custom-page.module";
     WebhooksModule,
     OauthModule,
     CustomPageModule,
+    AuthModule,
+    IframeModule,
   ],
   controllers: [],
   providers: [],
