@@ -25,20 +25,21 @@ export class GhlApiV2Service {
 
     const redirectUri = `${appUrl}/oauth/callback`;
 
-    const payload = {
+    const body = new URLSearchParams({
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: "authorization_code",
       code: code,
       redirect_uri: redirectUri,
-    } as const;
+      user_type: "Location",
+    });
 
-    this.logger.log("[GHL v2] Intercambiando código por tokens (JSON payload)");
+    this.logger.log("[GHL v2] Intercambiando código por tokens (x-www-form-urlencoded)");
 
     const { data } = await axios.post<GhlTokenResponse>(
       `${this.baseUrl}/oauth/token`,
-      payload,
-      { headers: { "Content-Type": "application/json", Accept: "application/json" } },
+      body.toString(),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" } },
     );
 
     if (!data || !data.access_token || !data.refresh_token) {
